@@ -1,0 +1,201 @@
+import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react'
+import { Product, ProductState } from '../types'
+
+// Product actions
+type ProductAction =
+  | { type: 'PRODUCTS_LOADING' }
+  | { type: 'PRODUCTS_LOADED'; payload: { products: Product[]; pagination: ProductState['pagination'] } }
+  | { type: 'PRODUCT_LOADED'; payload: Product }
+  | { type: 'PRODUCTS_ERROR'; payload: string }
+  | { type: 'SET_SEARCH_QUERY'; payload: string }
+  | { type: 'SET_CATEGORY'; payload: string | null }
+  | { type: 'CLEAR_ERROR' }
+
+// Product reducer
+const productReducer = (state: ProductState, action: ProductAction): ProductState => {
+  switch (action.type) {
+    case 'PRODUCTS_LOADING':
+      return {
+        ...state,
+        isLoading: true,
+        error: null,
+      }
+    case 'PRODUCTS_LOADED':
+      return {
+        ...state,
+        products: action.payload.products,
+        isLoading: false,
+        error: null,
+        pagination: action.payload.pagination,
+      }
+    case 'PRODUCT_LOADED':
+      return {
+        ...state,
+        currentProduct: action.payload,
+        isLoading: false,
+        error: null,
+      }
+    case 'PRODUCTS_ERROR':
+      return {
+        ...state,
+        isLoading: false,
+        error: action.payload,
+      }
+    case 'SET_SEARCH_QUERY':
+      return {
+        ...state,
+        searchQuery: action.payload,
+      }
+    case 'SET_CATEGORY':
+      return {
+        ...state,
+        selectedCategory: action.payload,
+      }
+    case 'CLEAR_ERROR':
+      return {
+        ...state,
+        error: null,
+      }
+    default:
+      return state
+  }
+}
+
+// Initial state
+const initialState: ProductState = {
+  products: [],
+  currentProduct: null,
+  isLoading: false,
+  error: null,
+  searchQuery: '',
+  selectedCategory: null,
+  pagination: {
+    currentPage: 1,
+    totalPages: 1,
+    totalProducts: 0,
+  },
+}
+
+// Create context
+interface ProductContextType extends ProductState {
+  fetchProducts: (page?: number, limit?: number) => Promise<void>
+  fetchProduct: (id: string) => Promise<void>
+  searchProducts: (query: string) => Promise<void>
+  filterByCategory: (category: string | null) => Promise<void>
+  clearError: () => void
+}
+
+const ProductContext = createContext<ProductContextType | undefined>(undefined)
+
+// Product provider props
+interface ProductProviderProps {
+  children: ReactNode
+}
+
+// API base URL
+const API_URL = (import.meta as any).env?.VITE_API_URL || '/api'
+
+// Product provider component
+export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) => {
+  const [state, dispatch] = useReducer(productReducer, initialState)
+
+  // Fetch products with optional filters
+  const fetchProducts = useCallback(async (page = 1, limit = 20) => {
+    dispatch({ type: 'PRODUCTS_LOADING' })
+
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      })
+
+      if (state.selectedCategory) {
+        params.append('category', state.selectedCategory)
+      }
+
+      if (state.searchQuery) {
+        params.append('search', state.searchQuery)
+      }
+
+      const response = await fetch(`${API_URL}/products?${params}`)
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch products')
+      }
+
+      dispatch({
+        type: 'PRODUCTS_LOADED',
+        payload: {
+          products: data.data,
+          pagination: data.pagination,
+        },
+      })
+    } catch (error) {
+      dispatch({
+        type: 'PRODUCTS_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to fetch products',
+      })
+    }
+  }, [state.selectedCategory, state.searchQuery, API_URL])
+
+  // Fetch single product
+  const fetchProduct = useCallback(async (id: string) => {
+    dispatch({ type: 'PRODUCTS_LOADING' })
+
+    try {
+      const response = await fetch(`${API_URL}/products/${id}`)
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch product')
+      }
+
+      dispatch({ type: 'PRODUCT_LOADED', payload: data.data })
+    } catch (error) {
+      dispatch({
+        type: 'PRODUCTS_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to fetch product',
+      })
+    }
+  }, [])
+
+  // Search products
+  const searchProducts = async (query: string) => {
+    dispatch({ type: 'SET_SEARCH_QUERY', payload: query })
+    await fetchProducts(1) // Reset to first page when searching
+  }
+
+  // Filter by category
+  const filterByCategory = async (category: string | null) => {
+    dispatch({ type: 'SET_CATEGORY', payload: category })
+    await fetchProducts(1) // Reset to first page when filtering
+  }
+
+  // Clear error
+  const clearError = () => {
+    dispatch({ type: 'CLEAR_ERROR' })
+  }
+
+  const value: ProductContextType = {
+    ...state,
+    fetchProducts,
+    fetchProduct,
+    searchProducts,
+    filterByCategory,
+    clearError,
+  }
+
+  return <ProductContext.Provider value={value}>{children}</ProductContext.Provider>
+}
+
+// Custom hook to use product context
+export const useProducts = (): ProductContextType => {
+  const context = useContext(ProductContext)
+  if (context === undefined) {
+    throw new Error('useProducts must be used within a ProductProvider')
+  }
+  return context
+}
