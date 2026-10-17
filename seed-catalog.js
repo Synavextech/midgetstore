@@ -33,12 +33,12 @@ async function seed() {
 
     let cat = 'trikes'
     const lowerName = sp.name.toLowerCase()
-    if (lowerName.includes('dirt bike') || lowerName.includes('bike') || lowerName.includes('motorcycle')) {
-      cat = 'dirt bikes'
-    } else if (lowerName.includes('kart') || lowerName.includes('buggy') || lowerName.includes('jeep')) {
-      cat = 'go karts'
-    } else if (lowerName.includes('scooter') || lowerName.includes('atv')) {
-      cat = 'scooters'
+    if (lowerName.includes('jeep') || lowerName.includes('car') || lowerName.includes('willys')) {
+      cat = 'Microcars'
+    } else if (lowerName.includes('kart') || lowerName.includes('buggy') || lowerName.includes('cross')) {
+      cat = 'Go karts'
+    } else if (lowerName.includes('dirt') || lowerName.includes('bike') || lowerName.includes('motorcycle') || lowerName.includes('scooter') || lowerName.includes('atv')) {
+      cat = 'Dirtbikes'
     } else if (lowerName.includes('trike') || lowerName.includes('drift')) {
       cat = 'trikes'
     }

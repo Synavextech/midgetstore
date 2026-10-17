@@ -59,9 +59,10 @@ export const AdminDashboard: React.FC = () => {
     originalPrice: '',
     sku: '',
     stock: '',
-    category: 'trikes',
+    category: 'Microcars',
     brand: 'Midget Micro Drive & Rides',
     imageUrl: '',
+    images: [] as string[],
     isNew: true,
     topSpeed: '60 km/h',
     range: '70 km',
@@ -154,29 +155,68 @@ export const AdminDashboard: React.FC = () => {
     }
   }
 
-  // Handle direct file upload through adminApi
+  // Handle direct file upload through adminApi (supports multiple images & video)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const fileList = e.target.files
+    if (!fileList || fileList.length === 0) return
+
+    const files = Array.from(fileList)
 
     try {
       setIsUploadingImage(true)
-      const res = await adminApi.uploadImage(file)
-      if (res.success && res.data?.url) {
-        setProductForm(prev => ({ ...prev, imageUrl: res.data!.url }))
-        notify('success', `Image uploaded successfully: ${res.data.filename}`)
+      const res = await adminApi.uploadImages(files)
+      if (res.success && res.data?.urls) {
+        const uploadedUrls = res.data.urls
+        setProductForm(prev => {
+          const combined = [...prev.images, ...uploadedUrls]
+          return {
+            ...prev,
+            images: combined,
+            imageUrl: combined[0] || prev.imageUrl
+          }
+        })
+        notify('success', `Uploaded ${uploadedUrls.length} media file(s) successfully`)
       }
     } catch (err: any) {
-      notify('error', err.message || 'Failed to upload image file')
+      notify('error', err.message || 'Failed to upload media file(s)')
     } finally {
       setIsUploadingImage(false)
+      e.target.value = ''
     }
+  }
+
+  const removeImage = (indexToRemove: number) => {
+    setProductForm(prev => {
+      const nextImages = prev.images.filter((_, idx) => idx !== indexToRemove)
+      return {
+        ...prev,
+        images: nextImages,
+        imageUrl: nextImages[0] || ''
+      }
+    })
+  }
+
+  const setPrimaryImage = (index: number) => {
+    setProductForm(prev => {
+      const item = prev.images[index]
+      const remaining = prev.images.filter((_, idx) => idx !== index)
+      const reordered = [item, ...remaining]
+      return {
+        ...prev,
+        images: reordered,
+        imageUrl: item
+      }
+    })
   }
 
   // Handle Product Save (Create / Update)
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const allImages = productForm.images.length > 0
+        ? productForm.images
+        : (productForm.imageUrl ? [productForm.imageUrl] : ['/images/hero1.jpeg'])
+
       const payload: Partial<Product> = {
         name: productForm.name,
         description: productForm.description,
@@ -186,7 +226,7 @@ export const AdminDashboard: React.FC = () => {
         stock: parseInt(productForm.stock, 10) || 0,
         category: productForm.category,
         brand: productForm.brand || 'Midget Micro Drive & Rides',
-        images: productForm.imageUrl ? [productForm.imageUrl] : ['/images/hero1.jpeg'],
+        images: allImages,
         isNew: productForm.isNew,
         averageDeliveryTime: productForm.deliveryTime || '2-4 business days (US Texas Depot)',
         isActive: true,
@@ -232,6 +272,7 @@ export const AdminDashboard: React.FC = () => {
   // Open Edit Product Modal
   const openEditModal = (product: Product) => {
     setEditingProductId(product.id)
+    const imgs = product.images && product.images.length > 0 ? product.images : []
     setProductForm({
       name: product.name,
       description: product.description || '',
@@ -239,9 +280,10 @@ export const AdminDashboard: React.FC = () => {
       originalPrice: product.originalPrice ? product.originalPrice.toString() : '',
       sku: product.sku,
       stock: product.stock.toString(),
-      category: product.category || 'trikes',
+      category: product.category || 'Microcars',
       brand: product.brand || 'Midget Micro Drive & Rides',
-      imageUrl: product.images && product.images.length > 0 ? product.images[0] : '',
+      imageUrl: imgs[0] || '',
+      images: imgs,
       isNew: product.isNew,
       topSpeed: '60 km/h',
       range: '70 km',
@@ -260,9 +302,10 @@ export const AdminDashboard: React.FC = () => {
       originalPrice: '',
       sku: `MMR-${Math.floor(1000 + Math.random() * 9000)}`,
       stock: '20',
-      category: 'trikes',
+      category: 'Microcars',
       brand: 'Midget Micro Drive & Rides',
-      imageUrl: '/images/hero1.jpeg',
+      imageUrl: '',
+      images: [],
       isNew: true,
       topSpeed: '65 km/h',
       range: '70 km',
@@ -766,47 +809,87 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <form onSubmit={handleSaveProduct} className="space-y-4">
-                {/* 1. Image File Upload & Preview */}
-                <div className="p-4 bg-gray-50 dark:bg-[#1a1d24] rounded-xl border border-dashed border-gray-300 dark:border-neutral-700">
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Product Image (Direct File Upload to /public/images)
-                  </label>
-
-                  <div className="flex items-center gap-4">
-                    {/* Thumbnail preview */}
-                    <div className="w-16 h-16 rounded-xl bg-gray-200 dark:bg-neutral-800 overflow-hidden flex-shrink-0 border border-gray-300 dark:border-neutral-700 flex items-center justify-center">
-                      {productForm.imageUrl ? (
-                        <img
-                          src={productForm.imageUrl}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.src = '/images/hero1.jpeg'
-                          }}
-                        />
-                      ) : (
-                        <ImageIcon className="w-6 h-6 text-gray-400" />
-                      )}
-                    </div>
-
-                    {/* File upload input & status */}
-                    <div className="flex-1">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        disabled={isUploadingImage}
-                        className="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer"
-                      />
-                      {isUploadingImage && (
-                        <p className="text-[10px] text-amber-500 font-bold mt-1">Uploading image to server...</p>
-                      )}
-                      <p className="text-[10px] text-gray-400 mt-1">
-                        Current: <span className="font-mono">{productForm.imageUrl || 'No image chosen'}</span>
+                {/* 1. Image File Upload & Multi-Media Gallery */}
+                <div className="p-4 bg-gray-50 dark:bg-[#1a1d24] rounded-xl border border-dashed border-gray-300 dark:border-neutral-700 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                        Product Media (Images & Videos to /public/images)
+                      </label>
+                      <p className="text-[10px] text-gray-400">
+                        Select multiple images or video clips. First media item is the primary thumbnail.
                       </p>
                     </div>
+                    <span className="text-[10px] font-mono bg-amber-500/20 text-amber-500 font-bold px-2 py-0.5 rounded">
+                      {productForm.images.length} uploaded
+                    </span>
                   </div>
+
+                  {/* File upload input */}
+                  <div>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/*"
+                      onChange={handleFileUpload}
+                      disabled={isUploadingImage}
+                      className="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer w-full"
+                    />
+                    {isUploadingImage && (
+                      <p className="text-[10px] text-amber-500 font-bold mt-1 animate-pulse">
+                        Uploading media file(s) to server...
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Media Gallery Previews */}
+                  {productForm.images.length > 0 && (
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-2 border-t border-gray-200 dark:border-neutral-800">
+                      {productForm.images.map((imgUrl, idx) => (
+                        <div
+                          key={idx}
+                          className={`group relative aspect-square rounded-lg overflow-hidden border-2 bg-gray-200 dark:bg-neutral-800 ${
+                            idx === 0 ? 'border-amber-500 shadow-sm' : 'border-gray-300 dark:border-neutral-700'
+                          }`}
+                        >
+                          <img
+                            src={imgUrl}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              if (!target.src.endsWith('/images/hero1.jpeg')) {
+                                target.src = '/images/hero1.jpeg'
+                              }
+                            }}
+                          />
+                          {idx === 0 && (
+                            <span className="absolute top-1 left-1 bg-amber-500 text-black text-[8px] font-black uppercase px-1 rounded">
+                              Main
+                            </span>
+                          )}
+                          <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity p-1">
+                            {idx !== 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setPrimaryImage(idx)}
+                                className="text-[8px] bg-amber-500 text-black font-bold px-1.5 py-0.5 rounded uppercase"
+                              >
+                                Make Main
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeImage(idx)}
+                              className="text-[8px] bg-red-600 text-white font-bold px-1.5 py-0.5 rounded uppercase"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* 2. Product Name */}
@@ -879,11 +962,10 @@ export const AdminDashboard: React.FC = () => {
                       onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                       className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-[#1a1d24] border border-gray-300 dark:border-neutral-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none transition-colors font-bold"
                     >
-                      <option value="trikes">Electric Drift Trikes</option>
-                      <option value="dirt bikes">Electric Dirt Bikes</option>
-                      <option value="go karts">Go Karts & Buggies</option>
-                      <option value="scooters">Scooters & ATVs</option>
-                      <option value="parts">Performance Parts & Sleeves</option>
+                      <option value="Microcars">Microcars</option>
+                      <option value="Go karts">Go karts</option>
+                      <option value="trikes">trikes</option>
+                      <option value="Dirtbikes">Dirtbikes</option>
                     </select>
                   </div>
                 </div>

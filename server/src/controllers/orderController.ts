@@ -1,20 +1,73 @@
 import { Request, Response } from 'express'
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
 import { databaseService } from '../services/databaseService.js'
 
 // @desc    Create new order
 // @route   POST /api/orders
-// @access  Private
+// @access  Public (Guest Checkout supported with optional inline account creation)
 export const createOrder = async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id
+    let userId = req.user?.id
     const {
+      customer,
       shippingAddressId,
       billingAddressId,
       shippingAddress: shippingAddressInput,
       paymentMethod = 'STRIPE',
+      paymentId,
+      paymentStatus,
       notes,
-      items: bodyItems
+      items: bodyItems,
+      password: customerPassword,
+      createAccount
     } = req.body
+
+    const customerEmail = customer?.email || shippingAddressInput?.email || req.user?.email
+
+    let tokenToReturn: string | null = null
+    let authUserToReturn: any = null
+
+    // If unauthenticated, find or automatically create customer user account
+    if (!userId) {
+      if (!customerEmail) {
+        return res.status(400).json({
+          success: false,
+          error: 'An email address is required to process your order'
+        })
+      }
+
+      let existingUser = await databaseService.findUserByEmail(customerEmail)
+      if (existingUser) {
+        userId = existingUser.id
+        authUserToReturn = existingUser
+      } else {
+        const salt = await bcrypt.genSalt(10)
+        const passwordToHash = customerPassword || `MMR_${Math.random().toString(36).substring(2, 10)}!1A`
+        const hashedPassword = await bcrypt.hash(passwordToHash, salt)
+        const firstName = customer?.firstName || shippingAddressInput?.firstName || 'Customer'
+        const lastName = customer?.lastName || shippingAddressInput?.lastName || ''
+        const phone = customer?.phone || shippingAddressInput?.phone || ''
+
+        const newUser = await databaseService.createUser({
+          email: customerEmail,
+          password: hashedPassword,
+          firstName,
+          lastName,
+          phone,
+          role: 'CUSTOMER'
+        })
+        userId = newUser.id
+        authUserToReturn = newUser
+
+        const secret = process.env.JWT_SECRET || 'your_jwt_secret_here'
+        tokenToReturn = (jwt as any).sign(
+          { id: newUser.id, email: newUser.email, role: newUser.role },
+          secret,
+          { expiresIn: process.env.JWT_EXPIRE || '30d' }
+        )
+      }
+    }
 
     // Determine order items (either from request body or user's database cart)
     let candidateItems: Array<{ productId: string; quantity: number }> = []
@@ -24,7 +77,7 @@ export const createOrder = async (req: Request, res: Response) => {
         productId: item.productId || item.product?.id || item.id,
         quantity: Number(item.quantity) || 1
       }))
-    } else {
+    } else if (userId) {
       const cart = await databaseService.findOrCreateCart(userId)
       if (cart.items && cart.items.length > 0) {
         candidateItems = cart.items.map(item => ({
@@ -46,7 +99,7 @@ export const createOrder = async (req: Request, res: Response) => {
     if (!finalShippingAddressId && shippingAddressInput) {
       try {
         const createdAddr = await databaseService.createAddress({
-          userId,
+          userId: userId!,
           type: 'SHIPPING',
           firstName: shippingAddressInput.firstName,
           lastName: shippingAddressInput.lastName,
@@ -102,6 +155,7 @@ export const createOrder = async (req: Request, res: Response) => {
     const total = Math.round((subtotal + tax + shipping) * 100) / 100
 
     // Create order in Supabase
+    const isSettled = paymentStatus === 'COMPLETED' || !!paymentId
     const order = await databaseService.createOrder({
       userId,
       total,
@@ -109,16 +163,36 @@ export const createOrder = async (req: Request, res: Response) => {
       tax,
       shipping,
       paymentMethod,
+      paymentId: paymentId || undefined,
+      paymentStatus: isSettled ? 'COMPLETED' : 'PENDING',
+      status: isSettled ? 'PROCESSING' : 'PENDING',
       shippingAddressId: finalShippingAddressId,
       billingAddressId,
       notes,
       items: orderItems
     })
 
+    if (tokenToReturn) {
+      res.cookie('token', tokenToReturn, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000
+      })
+    }
+
     res.status(201).json({
       success: true,
       message: 'Order created successfully',
-      data: order
+      data: order,
+      token: tokenToReturn,
+      user: authUserToReturn ? {
+        id: authUserToReturn.id,
+        email: authUserToReturn.email,
+        firstName: authUserToReturn.firstName,
+        lastName: authUserToReturn.lastName,
+        role: authUserToReturn.role
+      } : undefined
     })
   } catch (error) {
     console.error('Error creating order:', error)

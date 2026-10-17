@@ -45,12 +45,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB (supporting higher-res images & video)
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true)
     } else {
-      cb(new Error('Only image files are allowed.'))
+      cb(new Error('Only image and video files are allowed.'))
     }
   }
 })
@@ -58,29 +58,35 @@ const upload = multer({
 // All admin routes require authentication and ADMIN role
 router.use(protect, authorize('ADMIN'))
 
-// File upload endpoint for admin catalog items
-router.post('/upload', upload.single('image'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ success: false, error: 'No image uploaded' })
+// File upload endpoint for admin catalog items (supports single or multiple media files)
+router.post('/upload', upload.any(), (req, res) => {
+  const files = (req.files as Express.Multer.File[]) || (req.file ? [req.file] : [])
+  if (!files || files.length === 0) {
+    return res.status(400).json({ success: false, error: 'No media file uploaded' })
   }
 
-  // Dual-write sync: copy uploaded file to dist/images for immediate live serving
+  // Dual-write sync: copy uploaded file(s) to dist/images for immediate live serving
+  const urls: string[] = []
   try {
     if (!fs.existsSync(distImagesDir)) {
       fs.mkdirSync(distImagesDir, { recursive: true })
     }
-    const distTarget = path.join(distImagesDir, req.file.filename)
-    fs.copyFileSync(req.file.path, distTarget)
+    for (const f of files) {
+      const distTarget = path.join(distImagesDir, f.filename)
+      fs.copyFileSync(f.path, distTarget)
+      urls.push(`/images/${f.filename}`)
+    }
   } catch (syncErr) {
-    console.warn('Notice: Could not sync image to dist/images:', syncErr)
+    console.warn('Notice: Could not sync media to dist/images:', syncErr)
   }
 
-  const publicUrl = `/images/${req.file.filename}`
   res.status(200).json({
     success: true,
     data: {
-      url: publicUrl,
-      filename: req.file.filename
+      url: urls[0],
+      urls,
+      count: urls.length,
+      filename: files[0].filename
     }
   })
 })

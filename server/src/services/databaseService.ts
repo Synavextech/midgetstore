@@ -546,6 +546,9 @@ export class DatabaseService {
     shipping?: number
     discount?: number
     paymentMethod: 'STRIPE' | 'PAYPAL'
+    paymentId?: string
+    paymentStatus?: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED'
+    status?: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED'
     shippingAddressId?: string
     billingAddressId?: string
     notes?: string
@@ -570,11 +573,12 @@ export class DatabaseService {
         shipping: orderData.shipping || 0,
         discount: orderData.discount || 0,
         payment_method: orderData.paymentMethod,
+        payment_id: orderData.paymentId || null,
+        payment_status: orderData.paymentStatus || 'PENDING',
+        status: orderData.status || (orderData.paymentStatus === 'COMPLETED' ? 'PROCESSING' : 'PENDING'),
         shipping_address_id: orderData.shippingAddressId,
         billing_address_id: orderData.billingAddressId,
-        notes: orderData.notes,
-        status: 'PENDING',
-        payment_status: 'PENDING'
+        notes: orderData.notes
       })
       .select()
       .single()

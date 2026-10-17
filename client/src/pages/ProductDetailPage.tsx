@@ -1,8 +1,34 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Star, Truck, ShoppingCart, Heart, ArrowLeft, ShieldCheck } from 'lucide-react'
+import {
+  Star,
+  Truck,
+  ShoppingCart,
+  Heart,
+  ArrowLeft,
+  ShieldCheck,
+  Maximize2,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Play
+} from 'lucide-react'
 import { useProducts } from '../contexts/ProductContext'
 import { useCart } from '../contexts/CartContext'
+
+// Safe URL encoder for filenames with spaces or special characters
+const getSafeMediaUrl = (url?: string) => {
+  if (!url) return '/images/hero1.jpeg'
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const parts = url.split('/')
+  return parts.map((p, idx) => idx === 0 && p === '' ? '' : encodeURIComponent(decodeURIComponent(p))).join('/')
+}
+
+const isVideoMedia = (url?: string) => {
+  if (!url) return false
+  const lower = url.toLowerCase()
+  return lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.endsWith('.ogg')
+}
 
 export const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -14,11 +40,42 @@ export const ProductDetailPage = () => {
   const [selectedVariant, setSelectedVariant] = useState<string>('')
   const [quantity, setQuantity] = useState(1)
 
+  // Media Lightbox Modal state
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+
   useEffect(() => {
     if (id) {
       fetchProductById(id)
     }
   }, [id])
+
+  const mediaList = (currentProduct?.images && currentProduct.images.length > 0)
+    ? currentProduct.images
+    : ['/images/hero1.jpeg']
+
+  // Handle keyboard navigation for Lightbox
+  useEffect(() => {
+    if (!isLightboxOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsLightboxOpen(false)
+      } else if (e.key === 'ArrowRight') {
+        setLightboxIndex((prev) => (prev + 1) % mediaList.length)
+      } else if (e.key === 'ArrowLeft') {
+        setLightboxIndex((prev) => (prev - 1 + mediaList.length) % mediaList.length)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isLightboxOpen, mediaList.length])
+
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index)
+    setIsLightboxOpen(true)
+  }
 
   const handleAddToCart = async () => {
     if (currentProduct) {
@@ -94,6 +151,9 @@ export const ProductDetailPage = () => {
     )
   }
 
+  const activeMedia = mediaList[selectedImageIndex] || mediaList[0]
+  const currentLightboxMedia = mediaList[lightboxIndex] || mediaList[0]
+
   return (
     <div className="pt-20 pb-16 min-h-screen bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -108,36 +168,71 @@ export const ProductDetailPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Image Gallery */}
           <div className="lg:col-span-6 space-y-4">
-            <div className="aspect-[4/3] bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
-              {currentProduct.images && currentProduct.images.length > 0 ? (
-                <img
-                  src={currentProduct.images[selectedImageIndex] || currentProduct.images[0]}
-                  alt={currentProduct.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  No Image Available
+            <div
+              onClick={() => openLightbox(selectedImageIndex)}
+              className="group relative aspect-[4/3] bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-xl cursor-pointer"
+            >
+              {isVideoMedia(activeMedia) ? (
+                <div className="relative w-full h-full flex items-center justify-center bg-black">
+                  <video
+                    src={getSafeMediaUrl(activeMedia)}
+                    className="w-full h-full object-contain"
+                    controls
+                    playsInline
+                  />
                 </div>
+              ) : (
+                <img
+                  src={getSafeMediaUrl(activeMedia)}
+                  alt={currentProduct.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    if (!target.src.endsWith('/images/hero1.jpeg')) {
+                      target.src = '/images/hero1.jpeg'
+                    }
+                  }}
+                />
               )}
+
+              {/* Expand badge overlay */}
+              <div className="absolute bottom-3 right-3 bg-black/70 hover:bg-amber-500 text-white hover:text-black backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg">
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span>Enlarge & View All ({mediaList.length})</span>
+              </div>
             </div>
-            {currentProduct.images && currentProduct.images.length > 1 && (
-              <div className="grid grid-cols-4 gap-3">
-                {currentProduct.images.map((image, index) => (
+
+            {/* Thumbnail Carousel */}
+            {mediaList.length > 1 && (
+              <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                {mediaList.map((media, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
-                    className={`aspect-square bg-white dark:bg-[#16181e] rounded-xl border-2 ${
+                    onDoubleClick={() => openLightbox(index)}
+                    className={`relative flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 bg-white dark:bg-[#16181e] rounded-xl border-2 ${
                       selectedImageIndex === index
-                        ? 'border-amber-500 shadow-md'
-                        : 'border-gray-200 dark:border-neutral-800 hover:border-gray-400 dark:hover:border-neutral-600'
+                        ? 'border-amber-500 shadow-md ring-2 ring-amber-500/20'
+                        : 'border-gray-200 dark:border-neutral-800 hover:border-amber-500/50'
                     } overflow-hidden transition-all`}
                   >
-                    <img
-                      src={image}
-                      alt={`${currentProduct.name} thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
+                    {isVideoMedia(media) ? (
+                      <div className="w-full h-full flex items-center justify-center bg-neutral-900 text-amber-500">
+                        <Play className="w-6 h-6 fill-amber-500" />
+                      </div>
+                    ) : (
+                      <img
+                        src={getSafeMediaUrl(media)}
+                        alt={`${currentProduct.name} thumbnail ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          if (!target.src.endsWith('/images/hero1.jpeg')) {
+                            target.src = '/images/hero1.jpeg'
+                          }
+                        }}
+                      />
+                    )}
                   </button>
                 ))}
               </div>
@@ -150,7 +245,7 @@ export const ProductDetailPage = () => {
               <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
                 {currentProduct.category}
               </span>
-              <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-white mt-2">
+              <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-white mt-2 font-anton">
                 {currentProduct.name}
               </h1>
               <p className="text-xs text-gray-500 dark:text-neutral-400 font-bold mt-1">
@@ -159,54 +254,71 @@ export const ProductDetailPage = () => {
             </div>
 
             {/* Rating */}
-            <div className="flex items-center space-x-2 text-xs">
-              <div className="flex">
-                {renderStars(currentProduct.rating || 5.0)}
-              </div>
-              <span className="text-gray-600 dark:text-neutral-400 font-bold">
-                ({currentProduct.rating || 4.9}) {currentProduct.reviews || 42} reviews
-              </span>
-            </div>
-
-            {/* Price */}
-            <div className="p-4 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl">
-              <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-black text-amber-500">
-                  {formatPrice(currentProduct.price)}
+            {currentProduct.rating && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-0.5">
+                  {renderStars(currentProduct.rating)}
+                </div>
+                <span className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                  {currentProduct.rating.toFixed(1)} ({currentProduct.reviews || 0} reviews)
                 </span>
-                {currentProduct.originalPrice && currentProduct.originalPrice > currentProduct.price && (
-                  <span className="text-base text-gray-400 line-through font-bold">
-                    {formatPrice(currentProduct.originalPrice)}
-                  </span>
-                )}
-                {currentProduct.originalPrice && currentProduct.originalPrice > currentProduct.price && (
-                  <span className="text-xs font-black px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400">
-                    Save {formatPrice(currentProduct.originalPrice - currentProduct.price)}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Description */}
-            {currentProduct.description && (
-              <div className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                <p>{currentProduct.description}</p>
               </div>
             )}
 
-            {/* Stock & Delivery Specs */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-xl">
-                <p className="text-gray-400 font-bold text-[10px] uppercase">Availability</p>
-                <p className={`font-bold mt-0.5 ${currentProduct.stock > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
-                  {currentProduct.stock > 0 ? `In Stock (${currentProduct.stock} units)` : 'Backordered'}
-                </p>
-              </div>
+            {/* Price */}
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl font-black text-amber-500 font-anton">
+                {formatPrice(currentProduct.price)}
+              </span>
+              {currentProduct.originalPrice && currentProduct.originalPrice > currentProduct.price && (
+                <span className="text-sm font-bold text-gray-400 line-through">
+                  {formatPrice(currentProduct.originalPrice)}
+                </span>
+              )}
+            </div>
 
-              <div className="p-3 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-xl flex items-center gap-2">
-                <Truck className="w-5 h-5 text-amber-500" />
-                <div>
-                  <p className="text-gray-400 font-bold text-[10px] uppercase">Delivery</p>
+            {/* Description */}
+            <div className="space-y-2 border-t border-b border-gray-200 dark:border-neutral-800 py-4">
+              <h3 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-neutral-400">
+                Overview & Description
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+                {currentProduct.description || 'Engineered for extreme performance and lateral thrill. Assembled with heavy-duty components and precision braking for ultimate drift and speed.'}
+              </p>
+            </div>
+
+            {/* Quantity Selector */}
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                Quantity
+              </span>
+              <div className="flex items-center border border-gray-300 dark:border-neutral-700 rounded-xl overflow-hidden bg-white dark:bg-[#16181e]">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 font-bold"
+                >
+                  -
+                </button>
+                <span className="px-4 py-1.5 text-xs font-black min-w-[2.5rem] text-center">
+                  {quantity}
+                </span>
+                <button
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 font-bold"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Shipping & Delivery Notice */}
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <Truck className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-black uppercase tracking-wider text-amber-800 dark:text-amber-400">
+                    US Texas Depot Express Dispatch
+                  </p>
                   <p className="font-bold text-gray-800 dark:text-gray-200 mt-0.5 text-[11px]">
                     {currentProduct.averageDeliveryTime || '2-4 business days'}
                   </p>
@@ -241,6 +353,116 @@ export const ProductDetailPage = () => {
           </div>
         </div>
       </div>
+
+      {/* FULL-SCREEN MEDIA LIGHTBOX / VIEWER MODAL */}
+      {isLightboxOpen && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-fadeIn select-none">
+          {/* Header */}
+          <div className="flex items-center justify-between text-white max-w-6xl w-full mx-auto pb-3 border-b border-white/10">
+            <div>
+              <h3 className="font-anton text-lg sm:text-xl uppercase tracking-wider text-amber-500">
+                {currentProduct.name}
+              </h3>
+              <p className="text-xs text-gray-400">
+                Media {lightboxIndex + 1} of {mediaList.length} • Use Arrow Keys to navigate, Esc to exit
+              </p>
+            </div>
+            <button
+              onClick={() => setIsLightboxOpen(false)}
+              className="p-2 rounded-full bg-white/10 hover:bg-amber-500 hover:text-black transition-colors"
+              title="Close (Esc)"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Main Media Viewer Viewport */}
+          <div className="relative flex-1 flex items-center justify-center py-4 max-w-6xl w-full mx-auto overflow-hidden">
+            {/* Previous Button */}
+            {mediaList.length > 1 && (
+              <button
+                onClick={() => setLightboxIndex((prev) => (prev - 1 + mediaList.length) % mediaList.length)}
+                className="absolute left-2 sm:left-4 z-10 p-3 rounded-full bg-black/60 hover:bg-amber-500 hover:text-black text-white transition-all backdrop-blur-sm"
+                title="Previous (Left Arrow)"
+              >
+                <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
+              </button>
+            )}
+
+            {/* Media Item */}
+            <div className="max-h-[70vh] sm:max-h-[75vh] max-w-full flex items-center justify-center">
+              {isVideoMedia(currentLightboxMedia) ? (
+                <video
+                  src={getSafeMediaUrl(currentLightboxMedia)}
+                  controls
+                  autoPlay
+                  className="max-h-[70vh] sm:max-h-[75vh] max-w-full rounded-2xl shadow-2xl object-contain bg-black"
+                />
+              ) : (
+                <img
+                  src={getSafeMediaUrl(currentLightboxMedia)}
+                  alt={`${currentProduct.name} enlarged view ${lightboxIndex + 1}`}
+                  className="max-h-[70vh] sm:max-h-[75vh] max-w-full rounded-2xl shadow-2xl object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    if (!target.src.endsWith('/images/hero1.jpeg')) {
+                      target.src = '/images/hero1.jpeg'
+                    }
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Next Button */}
+            {mediaList.length > 1 && (
+              <button
+                onClick={() => setLightboxIndex((prev) => (prev + 1) % mediaList.length)}
+                className="absolute right-2 sm:right-4 z-10 p-3 rounded-full bg-black/60 hover:bg-amber-500 hover:text-black text-white transition-all backdrop-blur-sm"
+                title="Next (Right Arrow)"
+              >
+                <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
+              </button>
+            )}
+          </div>
+
+          {/* Horizontal Scrolling Thumbnails Reel */}
+          {mediaList.length > 1 && (
+            <div className="max-w-4xl w-full mx-auto pt-3 border-t border-white/10">
+              <div className="flex items-center justify-center gap-3 overflow-x-auto py-2 scrollbar-thin">
+                {mediaList.map((thumb, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setLightboxIndex(idx)}
+                    className={`relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                      lightboxIndex === idx
+                        ? 'border-amber-500 ring-2 ring-amber-500 scale-105'
+                        : 'border-white/20 opacity-60 hover:opacity-100 hover:border-amber-500/50'
+                    }`}
+                  >
+                    {isVideoMedia(thumb) ? (
+                      <div className="w-full h-full flex items-center justify-center bg-neutral-900 text-amber-500">
+                        <Play className="w-5 h-5 fill-amber-500" />
+                      </div>
+                    ) : (
+                      <img
+                        src={getSafeMediaUrl(thumb)}
+                        alt={`Thumb ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          if (!target.src.endsWith('/images/hero1.jpeg')) {
+                            target.src = '/images/hero1.jpeg'
+                          }
+                        }}
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

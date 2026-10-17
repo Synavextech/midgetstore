@@ -7,15 +7,15 @@ import {
   cancelOrder,
   getOrderStats
 } from '../controllers/orderController.js'
-import { protect, authorize } from '../middleware/auth.js'
+import { protect, authorize, optionalAuth } from '../middleware/auth.js'
 
 const router = express.Router()
 
-// All order routes require authentication
-router.use(protect)
+// Customer order placement allows guest checkout with optional authentication
+router.post('/', optionalAuth, createOrder)
 
-// Customer order routes
-router.post('/', createOrder)
+// Protected customer and admin routes
+router.use(protect)
 router.get('/', getOrders)
 router.get('/stats', authorize('ADMIN'), getOrderStats)
 router.get('/:id', getOrder)

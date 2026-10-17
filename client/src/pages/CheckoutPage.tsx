@@ -1,9 +1,23 @@
 import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CreditCard, ShieldCheck, Truck, Lock, CheckCircle, ExternalLink, AlertCircle, X } from 'lucide-react'
+import { loadStripe } from '@stripe/stripe-js'
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements
+} from '@stripe/react-stripe-js'
+import { CreditCard, ShieldCheck, Truck, Lock, CheckCircle, AlertCircle } from 'lucide-react'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { orderApi, paymentApi } from '../services/api'
+
+// Initialize Stripe with Live Publishable Key
+const stripePublishableKey =
+  (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY ||
+  'pk_live_51TmGHyBwxUQmXC9Magb4FXJbEPQ2EvNKaxNIzg2KlGeMliHNmNLx0hv0ACB6anDy2gFkU8tkZfRnatOJCdTzCwh500CV1Xf3BK'
+
+const stripePromise = loadStripe(stripePublishableKey)
 
 const ArrowLeft = ({ className }: { className?: string }) => (
   <svg className={className || 'w-4 h-4'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -25,25 +39,24 @@ interface ShippingFormData {
   country: string
 }
 
-export const CheckoutPage = () => {
+const CheckoutForm: React.FC = () => {
   const navigate = useNavigate()
-  const { items, totalPrice, clearCart } = useCart()
-  const { user, isAuthenticated } = useAuth()
+  const stripe = useStripe()
+  const elements = useElements()
 
-  // Only Stripe and PayPal are supported as requested
+  const { items, totalPrice, clearCart } = useCart()
+  const { user, isAuthenticated, setAuthenticatedUser } = useAuth()
+
+  // Account creation for guest shoppers
+  const [createAccount, setCreateAccount] = useState(false)
+  const [accountPassword, setAccountPassword] = useState('')
+
+  // Supported payment methods: Stripe and PayPal
   const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'PAYPAL'>('STRIPE')
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingStep, setProcessingStep] = useState<string>('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const errorRef = useRef<HTMLDivElement>(null)
-
-  // Card details for Stripe direct entry
-  const [cardData, setCardData] = useState({
-    nameOnCard: '',
-    cardNumber: '',
-    expDate: '',
-    cvc: ''
-  })
 
   const [shippingData, setShippingData] = useState<ShippingFormData>({
     firstName: user?.firstName || '',
@@ -76,60 +89,17 @@ export const CheckoutPage = () => {
     }))
   }
 
-  const handleCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    if (errorMessage) setErrorMessage(null)
-    // Format card number with spaces every 4 digits
-    if (name === 'cardNumber') {
-      const cleaned = value.replace(/\D/g, '').slice(0, 16)
-      const formatted = cleaned.match(/.{1,4}/g)?.join(' ') || cleaned
-      setCardData(prev => ({ ...prev, [name]: formatted }))
-      return
-    }
-    // Format expiration date MM/YY
-    if (name === 'expDate') {
-      const cleaned = value.replace(/\D/g, '').slice(0, 4)
-      const formatted = cleaned.length > 2 ? `${cleaned.slice(0, 2)}/${cleaned.slice(2)}` : cleaned
-      setCardData(prev => ({ ...prev, [name]: formatted }))
-      return
-    }
-    // Format CVC
-    if (name === 'cvc') {
-      const cleaned = value.replace(/\D/g, '').slice(0, 4)
-      setCardData(prev => ({ ...prev, [name]: cleaned }))
-      return
-    }
-    setCardData(prev => ({ ...prev, [name]: value }))
-  }
-
   const handlePayment = async () => {
-    if (!isAuthenticated) {
-      navigate('/login')
-      return
-    }
-
-    if (!shippingData.firstName || !shippingData.lastName || !shippingData.address1 || !shippingData.city || !shippingData.zipCode) {
-      setErrorMessage('Please fill in all required shipping address fields (First Name, Last Name, Address, City, ZIP Code).')
+    if (!shippingData.firstName || !shippingData.lastName || !shippingData.email || !shippingData.address1 || !shippingData.city || !shippingData.zipCode) {
+      setErrorMessage('Please fill in all required shipping address fields (First Name, Last Name, Email, Address, City, ZIP Code).')
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
       return
     }
 
-    if (paymentMethod === 'STRIPE') {
-      if (!cardData.cardNumber || cardData.cardNumber.replace(/\s/g, '').length < 15) {
-        setErrorMessage('Please enter a valid 15 or 16-digit card number.')
-        setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
-        return
-      }
-      if (!cardData.expDate || cardData.expDate.length < 5) {
-        setErrorMessage('Please enter a valid expiration date (MM/YY).')
-        setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
-        return
-      }
-      if (!cardData.cvc || cardData.cvc.length < 3) {
-        setErrorMessage('Please enter a valid 3 or 4-digit security code (CVC).')
-        setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
-        return
-      }
+    if (!isAuthenticated && createAccount && (!accountPassword || accountPassword.length < 6)) {
+      setErrorMessage('Please provide an account password with at least 6 characters.')
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+      return
     }
 
     setErrorMessage(null)
@@ -139,40 +109,113 @@ export const CheckoutPage = () => {
       let paymentRecordId = ''
 
       if (paymentMethod === 'STRIPE') {
-        setProcessingStep('Initializing secure card checkout...')
+        if (!stripe || !elements) {
+          throw new Error('Payment gateway is still initializing. Please wait a few seconds and try again.')
+        }
+
+        const cardElement = elements.getElement(CardElement)
+        if (!cardElement) {
+          throw new Error('Card payment form is not ready. Please refresh the page.')
+        }
+
+        setProcessingStep('Initializing secure transaction with Stripe...')
         const intentRes = await paymentApi.createStripePaymentIntent(grandTotal)
-        const paymentIntentId = intentRes.data?.paymentIntentId || `pi_stripe_${Date.now()}`
+        if (!intentRes.success || !intentRes.data?.clientSecret) {
+          throw new Error(intentRes.error || 'Failed to create payment intent with Stripe.')
+        }
 
-        setProcessingStep('Authorizing payment transaction securely...')
-        await new Promise(r => setTimeout(r, 900))
-        const confirmRes = await paymentApi.confirmStripePayment(paymentIntentId).catch(() => ({
-          success: true,
-          data: { status: 'succeeded', paymentId: paymentIntentId }
-        }))
+        const clientSecret = intentRes.data.clientSecret
 
-        paymentRecordId = confirmRes.data?.paymentId || paymentIntentId
+        setProcessingStep('Authorizing payment with your financial institution...')
+        const confirmResult = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: `${shippingData.firstName} ${shippingData.lastName}`.trim(),
+              email: shippingData.email,
+              phone: shippingData.phone || undefined,
+              address: {
+                line1: shippingData.address1,
+                line2: shippingData.address2 || undefined,
+                city: shippingData.city,
+                state: shippingData.state,
+                postal_code: shippingData.zipCode,
+                country: 'US'
+              }
+            }
+          }
+        })
+
+        if (confirmResult.error) {
+          throw new Error(confirmResult.error.message || 'Payment authorization was declined. Please verify card details.')
+        }
+
+        if (!confirmResult.paymentIntent || confirmResult.paymentIntent.status !== 'succeeded') {
+          throw new Error(`Payment could not be completed. Status: ${confirmResult.paymentIntent?.status || 'unconfirmed'}`)
+        }
+
+        paymentRecordId = confirmResult.paymentIntent.id
       } else if (paymentMethod === 'PAYPAL') {
-        setProcessingStep('Connecting to PayPal Express...')
+        setProcessingStep('Connecting to PayPal...')
         const ppRes = await paymentApi.createPayPalOrder(grandTotal)
-        const ppOrderId = ppRes.data?.orderId || `PAYPAL-${Date.now()}`
+        if (!ppRes.success || !ppRes.data?.orderId) {
+          throw new Error(ppRes.error || 'Failed to connect to PayPal.')
+        }
 
-        setProcessingStep('Finalizing PayPal transaction...')
-        await new Promise(r => setTimeout(r, 900))
-        const captureRes = await paymentApi.capturePayPalPayment(ppOrderId).catch(() => ({
-          success: true,
-          data: { status: 'COMPLETED', paymentId: ppOrderId }
-        }))
+        const ppOrderId = ppRes.data.orderId
+        const approveUrl = ppRes.data.approveUrl
 
+        if (approveUrl) {
+          // Store pending order details so it can be completed after returning from PayPal
+          localStorage.setItem('pending_paypal_order', JSON.stringify({
+            ppOrderId,
+            grandTotal,
+            shippingData,
+            createAccount,
+            accountPassword,
+            items: items.map(i => ({ productId: i.productId, quantity: i.quantity }))
+          }))
+          // Redirect to PayPal's secure approval page
+          window.location.href = approveUrl
+          return
+        }
+
+        // If direct capture available without approval redirect
+        const captureRes = await paymentApi.capturePayPalPayment(ppOrderId)
+        if (!captureRes.success) {
+          throw new Error(captureRes.error || 'PayPal capture failed.')
+        }
         paymentRecordId = captureRes.data?.paymentId || ppOrderId
       }
 
-      setProcessingStep('Finalizing and placing your order...')
-      // Persist order in Supabase via backend API
+      setProcessingStep('Securing your order in our database...')
+      // Persist settled order in Supabase via backend API
       const orderRes = await orderApi.createOrder({
         items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
         paymentMethod,
-        notes: `US Texas Depot Express Delivery to ${shippingData.city}, ${shippingData.state} (${shippingData.zipCode}). Paid via ${paymentMethod} (${paymentRecordId})`
+        paymentId: paymentRecordId,
+        paymentStatus: 'COMPLETED',
+        shippingAddress: {
+          firstName: shippingData.firstName,
+          lastName: shippingData.lastName,
+          email: shippingData.email,
+          phone: shippingData.phone,
+          address1: shippingData.address1,
+          address2: shippingData.address2,
+          city: shippingData.city,
+          state: shippingData.state,
+          postalCode: shippingData.zipCode,
+          country: shippingData.country
+        },
+        createAccount,
+        password: createAccount ? accountPassword : undefined,
+        notes: `US Texas Depot Express Delivery to ${shippingData.city}, ${shippingData.state} (${shippingData.zipCode}). Paid & Settled via ${paymentMethod} (${paymentRecordId})`
       } as any)
+
+      // Auto-authenticate customer if account was established
+      if ((orderRes as any).token && (orderRes as any).user) {
+        setAuthenticatedUser((orderRes as any).user, (orderRes as any).token)
+      }
 
       const orderNumber = orderRes.data?.orderNumber || `MMR-${Math.floor(100000 + Math.random() * 900000)}`
 
@@ -194,24 +237,31 @@ export const CheckoutPage = () => {
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
     } finally {
       setIsProcessing(false)
-      setProcessingStep('')
     }
   }
 
   const inputClasses =
-    'w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1a1d24] border border-gray-300 dark:border-neutral-700 rounded-xl text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-neutral-500 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-colors text-sm font-medium'
+    'w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1a1d24] border border-gray-300 dark:border-neutral-700 rounded-xl text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors text-xs font-medium'
 
   if (items.length === 0) {
     return (
-      <div className="pt-24 min-h-screen flex items-center justify-center px-4 bg-gray-50 dark:bg-[#0e1014]">
-        <div className="max-w-md w-full text-center p-8 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-xl">
-          <p className="text-gray-600 dark:text-gray-400 font-bold mb-6">Your shopping cart is empty.</p>
+      <div className="pt-28 pb-16 min-h-screen bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-2xl p-8 text-center">
+          <div className="w-16 h-16 bg-amber-50 dark:bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+            <Truck className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-black uppercase text-gray-900 dark:text-white mb-2 font-anton">
+            Your Cart is Empty
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-neutral-400 mb-6 font-medium">
+            Select a high-speed drift rig, go kart, or dirt bike from our fleet to proceed to checkout.
+          </p>
           <button
             onClick={() => navigate('/')}
-            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider px-6 py-3 rounded-xl transition-all shadow-lg shadow-amber-500/20"
+            className="w-full inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider py-3.5 px-6 rounded-xl transition-all text-xs"
           >
             <ArrowLeft className="w-4 h-4" />
-            Explore Fleet Catalog
+            Browse Fleet Catalog
           </button>
         </div>
       </div>
@@ -219,53 +269,39 @@ export const CheckoutPage = () => {
   }
 
   return (
-    <div className="pt-20 pb-16 min-h-screen bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">
-              <span>Midget Micro Drive & Rides</span>
-              <span>•</span>
-              <span>Texas Head Office Fulfillment</span>
-            </div>
-            <h1 className="text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-white font-anton">
-              Express Checkout (USD)
-            </h1>
-            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1 font-medium">
-              Encrypted 256-bit secure card and PayPal checkout with expedited courier dispatch.
-            </p>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 px-3 py-1.5 rounded-full">
-            <ShieldCheck className="w-4 h-4" />
-            256-Bit SSL Encrypted
-          </div>
+    <div className="pt-24 pb-16 min-h-screen bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <button
+          onClick={() => navigate('/cart')}
+          className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Return to Cart
+        </button>
+
+        <div className="mb-8">
+          <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+            Official Checkout
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-white mt-2 font-anton">
+            Express Order Finalization
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-neutral-400 font-bold mt-1">
+            Production-grade SSL 256-Bit payment gateway with US Texas Depot priority dispatch.
+          </p>
         </div>
 
-        {/* Global In-UI Checkout Error Banner */}
         {errorMessage && (
           <div
             ref={errorRef}
-            className="mb-6 p-4 rounded-2xl border border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 flex items-start justify-between gap-3 shadow-md animate-fadeIn"
-            role="alert"
+            className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-xs flex items-center justify-between"
           >
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-wider text-red-800 dark:text-red-200">
-                  Unable to Complete Checkout
-                </h4>
-                <p className="text-xs mt-0.5 font-medium leading-relaxed text-red-700 dark:text-red-300">
-                  {errorMessage}
-                </p>
-              </div>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span className="font-semibold text-xs">{errorMessage}</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setErrorMessage(null)}
-              className="text-red-400 hover:text-red-700 dark:hover:text-red-200 transition-colors p-1"
-              aria-label="Dismiss error"
-            >
-              <X className="w-4 h-4" />
+            <button onClick={() => setErrorMessage(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">
+              Dismiss
             </button>
           </div>
         )}
@@ -418,6 +454,41 @@ export const CheckoutPage = () => {
                     <option value="Other">Other International Destination</option>
                   </select>
                 </div>
+
+                {/* Inline Account Creation for Guest / New Shoppers */}
+                {!isAuthenticated && (
+                  <div className="pt-3 border-t border-gray-100 dark:border-neutral-800">
+                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={createAccount}
+                        onChange={(e) => setCreateAccount(e.target.checked)}
+                        className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-neutral-700"
+                      />
+                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                        Create an account with this order <span className="text-amber-500 font-semibold">(save address & track deliveries)</span>
+                      </span>
+                    </label>
+
+                    {createAccount && (
+                      <div className="mt-3 p-3.5 bg-gray-50 dark:bg-[#1a1d24] rounded-xl border border-gray-200 dark:border-neutral-800 animate-fadeIn space-y-2">
+                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                          Create Account Password *
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Choose password (at least 6 characters)"
+                          value={accountPassword}
+                          onChange={(e) => setAccountPassword(e.target.value)}
+                          className={inputClasses}
+                        />
+                        <p className="text-[10px] text-gray-400">
+                          Account will be registered to <span className="font-mono text-amber-500">{shippingData.email || 'your email'}</span> automatically upon placing your order.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </form>
             </div>
 
@@ -434,7 +505,7 @@ export const CheckoutPage = () => {
               </div>
 
               <div className="space-y-4">
-                {/* Option 1: Credit / Debit Card Checkout */}
+                {/* Option 1: Credit / Debit Card Checkout via Real Stripe Elements */}
                 <label
                   className={`block p-4 border rounded-xl cursor-pointer transition-all ${
                     paymentMethod === 'STRIPE'
@@ -462,63 +533,41 @@ export const CheckoutPage = () => {
                       </div>
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
-                      Instant & Encrypted
+                      Stripe Protected
                     </span>
                   </div>
 
                   {paymentMethod === 'STRIPE' && (
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-neutral-800 space-y-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">Cardholder Name</label>
-                        <input
-                          type="text"
-                          name="nameOnCard"
-                          placeholder="e.g. John Doe"
-                          value={cardData.nameOnCard}
-                          onChange={handleCardChange}
-                          className={inputClasses}
+                      <div className="p-3.5 bg-white dark:bg-[#1a1d24] border border-gray-300 dark:border-neutral-700 rounded-xl focus-within:ring-2 focus-within:ring-amber-500 transition-all">
+                        <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-gray-100 dark:border-neutral-800">
+                          <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">
+                            Card Information
+                          </span>
+                          <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
+                            <Lock className="w-3 h-3" />
+                            <span>Stripe TLS 256-Bit</span>
+                          </div>
+                        </div>
+                        <CardElement
+                          options={{
+                            style: {
+                              base: {
+                                fontSize: '13px',
+                                color: '#f3f4f6',
+                                '::placeholder': {
+                                  color: '#9ca3af',
+                                },
+                                fontFamily: 'Inter, system-ui, sans-serif',
+                              },
+                              invalid: {
+                                color: '#ef4444',
+                                iconColor: '#ef4444',
+                              },
+                            },
+                            hidePostalCode: true,
+                          }}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">Card Number</label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            name="cardNumber"
-                            placeholder="4000 1234 5678 9010"
-                            value={cardData.cardNumber}
-                            onChange={handleCardChange}
-                            maxLength={19}
-                            className={`${inputClasses} font-mono`}
-                          />
-                          <Lock className="w-4 h-4 text-gray-400 absolute right-3.5 top-3" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">Expiration (MM/YY)</label>
-                          <input
-                            type="text"
-                            name="expDate"
-                            placeholder="MM/YY"
-                            value={cardData.expDate}
-                            onChange={handleCardChange}
-                            maxLength={5}
-                            className={`${inputClasses} font-mono`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">CVC / CVV</label>
-                          <input
-                            type="password"
-                            name="cvc"
-                            placeholder="CVC"
-                            value={cardData.cvc}
-                            onChange={handleCardChange}
-                            maxLength={4}
-                            className={`${inputClasses} font-mono`}
-                          />
-                        </div>
                       </div>
                     </div>
                   )}
@@ -589,7 +638,9 @@ export const CheckoutPage = () => {
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement
-                            target.src = '/images/60v-5000w-high-speed-electric-drift-kart.webp'
+                            if (!target.src.endsWith('/images/hero1.jpeg')) {
+                              target.src = '/images/hero1.jpeg'
+                            }
                           }}
                         />
                       ) : (
@@ -672,6 +723,14 @@ export const CheckoutPage = () => {
         </div>
       </div>
     </div>
+  )
+}
+
+export const CheckoutPage = () => {
+  return (
+    <Elements stripe={stripePromise}>
+      <CheckoutForm />
+    </Elements>
   )
 }
 

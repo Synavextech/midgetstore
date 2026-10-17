@@ -9,6 +9,13 @@ const ArrowLeft = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const getSafeMediaUrl = (url?: string) => {
+  if (!url) return '/images/hero1.jpeg'
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const parts = url.split('/')
+  return parts.map((p, idx) => idx === 0 && p === '' ? '' : encodeURIComponent(decodeURIComponent(p))).join('/')
+}
+
 const CartPage = () => {
   const navigate = useNavigate()
   const { items, isLoading, error, totalItems, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart()
@@ -117,9 +124,15 @@ const CartPage = () => {
                         <div className="w-20 h-20 bg-gray-100 dark:bg-neutral-800 rounded-xl overflow-hidden flex-shrink-0 border border-gray-200 dark:border-neutral-700">
                           {item.product.images && item.product.images.length > 0 ? (
                             <img
-                              src={item.product.images[0]}
+                              src={getSafeMediaUrl(item.product.images[0])}
                               alt={item.product.name}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                if (!target.src.endsWith('/images/hero1.jpeg')) {
+                                  target.src = '/images/hero1.jpeg'
+                                }
+                              }}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">

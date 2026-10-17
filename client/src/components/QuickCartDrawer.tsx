@@ -4,6 +4,13 @@ import { useCart } from '../contexts/CartContext'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
+const getSafeMediaUrl = (url?: string) => {
+  if (!url) return '/images/hero1.jpeg'
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const parts = url.split('/')
+  return parts.map((p, idx) => idx === 0 && p === '' ? '' : encodeURIComponent(decodeURIComponent(p))).join('/')
+}
+
 interface QuickCartDrawerProps {
   isOpen: boolean
   onClose: () => void
@@ -26,12 +33,8 @@ export const QuickCartDrawer: React.FC<QuickCartDrawerProps> = ({
   }
 
   const handleCheckoutClick = () => {
-    if (!isAuthenticated) {
-      onPromptAuth()
-    } else {
-      onClose()
-      navigate('/checkout')
-    }
+    onClose()
+    navigate('/checkout')
   }
 
   return (
@@ -91,12 +94,14 @@ export const QuickCartDrawer: React.FC<QuickCartDrawerProps> = ({
                   <div className="w-20 h-20 bg-gray-100 dark:bg-black rounded-lg overflow-hidden flex-shrink-0 relative border border-gray-200 dark:border-white/10">
                     {item.product?.images && item.product.images.length > 0 ? (
                       <img
-                        src={item.product.images[0]}
+                        src={getSafeMediaUrl(item.product.images[0])}
                         alt={item.product.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
-                          target.style.display = 'none'
+                          if (!target.src.endsWith('/images/hero1.jpeg')) {
+                            target.src = '/images/hero1.jpeg'
+                          }
                         }}
                       />
                     ) : (

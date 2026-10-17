@@ -66,6 +66,7 @@ interface AuthContextType extends AuthState {
   register: (userData: RegisterData) => Promise<void>
   logout: () => void
   clearError: () => void
+  setAuthenticatedUser: (user: User, token: string) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -220,12 +221,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     dispatch({ type: 'CLEAR_ERROR' })
   }
 
+  // Set authenticated user directly (e.g. from inline checkout account creation)
+  const setAuthenticatedUser = (user: User, token: string) => {
+    localStorage.setItem('token', token)
+    dispatch({ type: 'AUTH_SUCCESS', payload: user })
+  }
+
   const value: AuthContextType = {
     ...state,
     login,
     register,
     logout,
     clearError,
+    setAuthenticatedUser,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

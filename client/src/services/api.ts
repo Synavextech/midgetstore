@@ -372,9 +372,19 @@ export const adminApi = {
   },
 
   // Upload product image file (admin)
-  uploadImage: async (file: File): Promise<ApiResponse<{ url: string; filename: string }>> => {
+  uploadImage: async (file: File): Promise<ApiResponse<{ url: string; urls?: string[]; filename: string }>> => {
     const formData = new FormData()
     formData.append('image', file)
+    return apiRequest('/admin/upload', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  // Upload multiple product media files (admin)
+  uploadImages: async (files: File[]): Promise<ApiResponse<{ url: string; urls: string[]; count: number; filename: string }>> => {
+    const formData = new FormData()
+    files.forEach(f => formData.append('images', f))
     return apiRequest('/admin/upload', {
       method: 'POST',
       body: formData,

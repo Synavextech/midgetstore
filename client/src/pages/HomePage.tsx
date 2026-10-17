@@ -21,12 +21,19 @@ import { QuickCartDrawer } from '../components/QuickCartDrawer'
 
 const CATEGORIES = [
   { id: 'all', label: 'All Rigs' },
-  { id: 'trikes', label: 'Trikes' },
-  { id: 'dirt bikes', label: 'Dirt Bikes' },
+  { id: 'microcars', label: 'Microcars' },
   { id: 'go karts', label: 'Go Karts' },
-  { id: 'electronics', label: 'Electric' },
-  { id: 'accessories', label: 'Parts & Gear' },
+  { id: 'trikes', label: 'Trikes' },
+  { id: 'dirtbikes', label: 'Dirtbikes' },
 ]
+
+// Safe URL encoder for filenames with spaces and special characters
+const getSafeMediaUrl = (url?: string) => {
+  if (!url) return '/images/hero1.jpeg'
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const parts = url.split('/')
+  return parts.map((p, idx) => idx === 0 && p === '' ? '' : encodeURIComponent(decodeURIComponent(p))).join('/')
+}
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate()
@@ -56,9 +63,26 @@ export const HomePage: React.FC = () => {
   const filteredProducts = selectedCategory === 'all'
     ? safeProducts
     : safeProducts.filter(p => {
-        const cat = p.category?.toLowerCase() || ''
-        const name = p.name?.toLowerCase() || ''
+        const cat = (p.category || '').toLowerCase()
+        const name = (p.name || '').toLowerCase()
         const sel = selectedCategory.toLowerCase()
+
+        if (sel === 'microcars') {
+          return cat.includes('microcar') || cat.includes('car') || cat.includes('jeep') ||
+                 name.includes('microcar') || name.includes('car') || name.includes('jeep') || name.includes('willys')
+        }
+        if (sel === 'go karts') {
+          return cat.includes('kart') || cat.includes('buggy') ||
+                 name.includes('kart') || name.includes('buggy')
+        }
+        if (sel === 'trikes') {
+          return cat.includes('trike') || (cat.includes('drift') && !cat.includes('kart')) ||
+                 name.includes('trike')
+        }
+        if (sel === 'dirtbikes' || sel === 'dirt bikes') {
+          return cat.includes('dirt') || cat.includes('bike') || cat.includes('enduro') || cat.includes('motorcycle') ||
+                 name.includes('dirt') || name.includes('bike') || name.includes('enduro') || name.includes('motorcycle')
+        }
         return cat.includes(sel) || name.includes(sel)
       })
 
@@ -179,27 +203,34 @@ export const HomePage: React.FC = () => {
               Precision torque meets lateral freedom. Dominate every asphalt curve, outdoor track, and dirt trail with the nation's premier selection of electric drift trikes, dirt bikes, and high-speed go karts.
             </p>
 
-            <div className="flex flex-wrap gap-4 pt-2">
+            <div className="flex flex-wrap gap-3 pt-2">
               <a
                 href="#store-catalog"
-                onClick={() => setSelectedCategory('trikes')}
-                className="bg-amber-500 hover:bg-amber-400 text-black px-8 py-4 font-extrabold text-xs uppercase tracking-widest rounded-lg active:scale-95 transition-all shadow-lg shadow-amber-500/20"
+                onClick={() => setSelectedCategory('microcars')}
+                className="bg-amber-500 hover:bg-amber-400 text-black px-6 py-3.5 font-extrabold text-xs uppercase tracking-widest rounded-lg active:scale-95 transition-all shadow-lg shadow-amber-500/20"
               >
-                Shop Drift Trikes
-              </a>
-              <a
-                href="#store-catalog"
-                onClick={() => setSelectedCategory('dirt bikes')}
-                className="border-2 border-white/30 text-white px-8 py-4 font-extrabold text-xs uppercase tracking-widest rounded-lg hover:border-amber-500 hover:text-amber-500 active:scale-95 transition-all"
-              >
-                Shop Dirt Bikes
+                Shop Microcars
               </a>
               <a
                 href="#store-catalog"
                 onClick={() => setSelectedCategory('go karts')}
-                className="border-2 border-white/30 text-white px-8 py-4 font-extrabold text-xs uppercase tracking-widest rounded-lg hover:border-amber-500 hover:text-amber-500 active:scale-95 transition-all"
+                className="border-2 border-white/30 text-white px-6 py-3.5 font-extrabold text-xs uppercase tracking-widest rounded-lg hover:border-amber-500 hover:text-amber-500 active:scale-95 transition-all"
               >
                 Shop Go Karts
+              </a>
+              <a
+                href="#store-catalog"
+                onClick={() => setSelectedCategory('trikes')}
+                className="border-2 border-white/30 text-white px-6 py-3.5 font-extrabold text-xs uppercase tracking-widest rounded-lg hover:border-amber-500 hover:text-amber-500 active:scale-95 transition-all"
+              >
+                Shop Trikes
+              </a>
+              <a
+                href="#store-catalog"
+                onClick={() => setSelectedCategory('dirtbikes')}
+                className="border-2 border-white/30 text-white px-6 py-3.5 font-extrabold text-xs uppercase tracking-widest rounded-lg hover:border-amber-500 hover:text-amber-500 active:scale-95 transition-all"
+              >
+                Shop Dirtbikes
               </a>
             </div>
           </div>
@@ -317,7 +348,7 @@ export const HomePage: React.FC = () => {
                     >
                       {product.images && product.images.length > 0 ? (
                         <img
-                          src={product.images[0]}
+                          src={getSafeMediaUrl(product.images[0])}
                           alt={product.name}
                           loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -325,8 +356,6 @@ export const HomePage: React.FC = () => {
                             const target = e.target as HTMLImageElement
                             if (!target.src.endsWith('/images/hero1.jpeg')) {
                               target.src = '/images/hero1.jpeg'
-                            } else {
-                              target.style.display = 'none'
                             }
                           }}
                         />
@@ -475,10 +504,10 @@ export const HomePage: React.FC = () => {
             <div>
               <p className="font-bold text-xs text-amber-500 uppercase tracking-widest mb-4">The Fleet</p>
               <ul className="space-y-2.5 text-xs text-gray-600 dark:text-gray-400 font-medium">
-                <li><a href="#store-catalog" onClick={() => setSelectedCategory('trikes')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Electric Drift Trikes</a></li>
-                <li><a href="#store-catalog" onClick={() => setSelectedCategory('dirt bikes')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Dirt Bikes & Enduro</a></li>
+                <li><a href="#store-catalog" onClick={() => setSelectedCategory('microcars')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Microcars & Mini Jeeps</a></li>
                 <li><a href="#store-catalog" onClick={() => setSelectedCategory('go karts')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Racing Go Karts & Buggies</a></li>
-                <li><a href="#store-catalog" onClick={() => setSelectedCategory('scooters')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Electric Scooters & ATVs</a></li>
+                <li><a href="#store-catalog" onClick={() => setSelectedCategory('trikes')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Electric Drift Trikes</a></li>
+                <li><a href="#store-catalog" onClick={() => setSelectedCategory('dirtbikes')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Dirtbikes & Enduro</a></li>
                 <li><a href="#store-catalog" onClick={() => setSelectedCategory('all')} className="hover:text-amber-500 dark:hover:text-white transition-colors">The Full Range Catalog</a></li>
               </ul>
             </div>
