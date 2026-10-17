@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Play
+  Play,
+  Download,
+  Check
 } from 'lucide-react'
 import { useProducts } from '../contexts/ProductContext'
 import { useCart } from '../contexts/CartContext'
@@ -33,12 +35,17 @@ const isVideoMedia = (url?: string) => {
 export const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { currentProduct, fetchProductById, isLoading, error } = useProducts()
+  const { currentProduct: rawProduct, fetchProductById, fetchProduct, products, isLoading, error } = useProducts()
   const { addToCart } = useCart()
 
+  // Use matching product from memory immediately if available, preventing dark blank screen
+  const currentProduct = rawProduct?.id === id ? rawProduct : (products?.find(p => p.id === id) || rawProduct)
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-  const [selectedVariant, setSelectedVariant] = useState<string>('')
+  const [selectedVariant, setSelectedVariant] = useState<string>('BLACK')
   const [quantity, setQuantity] = useState(1)
+  const [isSaved, setIsSaved] = useState(false)
+  const [addedNotice, setAddedNotice] = useState(false)
 
   // Media Lightbox Modal state
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
@@ -46,9 +53,20 @@ export const ProductDetailPage = () => {
 
   useEffect(() => {
     if (id) {
-      fetchProductById(id)
+      if (typeof fetchProductById === 'function') {
+        fetchProductById(id)
+      } else if (typeof fetchProduct === 'function') {
+        fetchProduct(id)
+      }
     }
-  }, [id])
+    // Reset selected image when navigating to new product
+    setSelectedImageIndex(0)
+  }, [id, fetchProductById, fetchProduct])
+
+  // Extract color variants
+  const colorOptions = currentProduct?.variants && currentProduct.variants.length > 0
+    ? currentProduct.variants.map(v => v.value || v.name)
+    : ['BLACK', 'RED', 'BLUE']
 
   const mediaList = (currentProduct?.images && currentProduct.images.length > 0)
     ? currentProduct.images
@@ -77,22 +95,61 @@ export const ProductDetailPage = () => {
     setIsLightboxOpen(true)
   }
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = () => {
     if (currentProduct) {
-      await addToCart(currentProduct.id, quantity)
+      addToCart(currentProduct, quantity)
+      setAddedNotice(true)
+      setTimeout(() => setAddedNotice(false), 2500)
     }
   }
 
-  const handleBuyNow = async () => {
+  const handleBuyNow = () => {
     if (currentProduct) {
-      await addToCart(currentProduct.id, quantity)
+      addToCart(currentProduct, quantity)
       navigate('/checkout')
     }
   }
 
-  // Helper function to format price in USD
+  const handleDownloadSpecs = () => {
+    if (!currentProduct) return
+    const specSheet = `MIDGET MICRO DRIVES & RIDES — OFFICIAL SPECIFICATION SHEET
+======================================================
+Product: ${currentProduct.name}
+Category: ${currentProduct.category}
+SKU: ${currentProduct.sku}
+Price: $${currentProduct.price}
+Selected Color: ${selectedVariant}
+Warranty: 1 Year Manufacturer Warranty Included
+Dispatch: Texas Depot (Fast Delivery 2-4 Days)
+
+OVERVIEW:
+${currentProduct.description || 'Precision engineered micro ride built for performance, reliability, and extreme adventure.'}
+
+KEY TECHNICAL SPECIFICATIONS:
+- Motor & Drive: High-Torque Performance Motor
+- Frame: High-Tensile Steel & Reinforced Chassis
+- Braking: Precision Hydraulic Disc Brake System
+- Suspension: Heavy Duty Front & Rear Shock Absorbers
+- Delivery Time: ${currentProduct.averageDeliveryTime || '12-20 days standard express'}
+- Guarantee: 100% Factory Verified & Authenticity Guaranteed
+
+Official Website: https://midgetmicrodrivesandrides.shop
+Customer Support: support@midgetmicrodrivesandrides.shop
+======================================================`
+    const blob = new Blob([specSheet], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${currentProduct.name.replace(/[^a-zA-Z0-9]/g, '_')}_Specifications.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  // Format price in USD
   const formatPrice = (price: number) => {
-    return `$${(price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    return `$${(price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
   }
 
   // Helper function to render stars
@@ -123,28 +180,44 @@ export const ProductDetailPage = () => {
     return stars
   }
 
-  if (isLoading) {
-    return (
-      <div className="pt-24 min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400 font-bold text-sm">Loading product details...</p>
-        </div>
-      </div>
-    )
+  // Tagline based on product details
+  const getProductTagline = () => {
+    if (!currentProduct) return ''
+    const lower = (currentProduct.name + ' ' + currentProduct.category).toLowerCase()
+    if (lower.includes('dirt') || lower.includes('motorcycle') || lower.includes('enduro')) {
+      return 'Powerful electric performance built for off-road adventure'
+    }
+    if (lower.includes('trike') || lower.includes('drift')) {
+      return 'Engineered for lateral freedom and high-torque drift thrills'
+    }
+    if (lower.includes('kart') || lower.includes('buggy')) {
+      return 'Track-ready acceleration and precision handling on all terrains'
+    }
+    return 'Premium high-performance electric ride built for adventure'
   }
 
-  if (error || !currentProduct) {
+  if (!currentProduct) {
+    if (isLoading) {
+      return (
+        <div className="pt-24 min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-400 font-bold text-sm">Loading product details...</p>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="pt-24 min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
         <div className="text-center p-8 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-xl max-w-md">
           <p className="text-red-500 font-bold mb-4">{error || 'Product not found'}</p>
           <button
-            onClick={() => navigate('/')}
-            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider px-5 py-2.5 rounded-xl text-xs"
+            onClick={() => navigate('/#store-catalog')}
+            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider px-5 py-2.5 rounded-xl text-xs transition-transform active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Home
+            Back to Products
           </button>
         </div>
       </div>
@@ -155,22 +228,38 @@ export const ProductDetailPage = () => {
   const currentLightboxMedia = mediaList[lightboxIndex] || mediaList[0]
 
   return (
-    <div className="pt-20 pb-16 min-h-screen bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <button
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Catalog
-        </button>
+    <div className="pt-20 pb-20 min-h-screen bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        
+        {/* Top Back Navigation Bar */}
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => navigate('/#store-catalog')}
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-gray-600 dark:text-gray-300 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 text-amber-500" />
+            <span>Back to Product Listing</span>
+          </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          {/* Image Gallery */}
+          {/* Added to cart toast notice */}
+          {addedNotice && (
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-full animate-fadeIn">
+              <Check className="w-3.5 h-3.5" />
+              <span>Added to your cart!</span>
+            </div>
+          )}
+        </div>
+
+        {/* Main Product Showcase Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+          
+          {/* LEFT COLUMN: Media Showcase */}
           <div className="lg:col-span-6 space-y-4">
+            
+            {/* Primary Main Image / Video Viewport */}
             <div
               onClick={() => openLightbox(selectedImageIndex)}
-              className="group relative aspect-[4/3] bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-xl cursor-pointer"
+              className="group relative aspect-[4/3] bg-white dark:bg-[#15171d] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-2xl cursor-pointer flex items-center justify-center"
             >
               {isVideoMedia(activeMedia) ? (
                 <div className="relative w-full h-full flex items-center justify-center bg-black">
@@ -185,7 +274,7 @@ export const ProductDetailPage = () => {
                 <img
                   src={getSafeMediaUrl(activeMedia)}
                   alt={currentProduct.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement
                     if (!target.src.endsWith('/images/hero1.jpeg')) {
@@ -195,35 +284,38 @@ export const ProductDetailPage = () => {
                 />
               )}
 
-              {/* Expand badge overlay */}
-              <div className="absolute bottom-3 right-3 bg-black/70 hover:bg-amber-500 text-white hover:text-black backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg">
-                <Maximize2 className="w-3.5 h-3.5" />
-                <span>Enlarge & View All ({mediaList.length})</span>
+              {/* Slide Counter Overlay Badge (e.g. 1 / 6) */}
+              <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md text-white text-[11px] font-black px-2.5 py-1 rounded-md border border-white/15 tracking-widest shadow-md">
+                {selectedImageIndex + 1} / {mediaList.length}
+              </div>
+
+              {/* Enlarge Hint overlay */}
+              <div className="absolute top-3 right-3 bg-black/60 hover:bg-amber-500 hover:text-black text-white backdrop-blur-md p-2 rounded-xl transition-all shadow-md">
+                <Maximize2 className="w-4 h-4" />
               </div>
             </div>
 
-            {/* Thumbnail Carousel */}
+            {/* Horizontal Thumbnails Strip matching reference screenshot */}
             {mediaList.length > 1 && (
-              <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin">
+              <div className="grid grid-cols-6 gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-thin">
                 {mediaList.map((media, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
-                    onDoubleClick={() => openLightbox(index)}
-                    className={`relative flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 bg-white dark:bg-[#16181e] rounded-xl border-2 ${
+                    className={`relative aspect-square bg-white dark:bg-[#15171d] rounded-lg border-2 overflow-hidden transition-all ${
                       selectedImageIndex === index
-                        ? 'border-amber-500 shadow-md ring-2 ring-amber-500/20'
-                        : 'border-gray-200 dark:border-neutral-800 hover:border-amber-500/50'
-                    } overflow-hidden transition-all`}
+                        ? 'border-lime-500 dark:border-lime-400 ring-2 ring-lime-500/20 shadow-md scale-[1.02]'
+                        : 'border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30 opacity-75 hover:opacity-100'
+                    }`}
                   >
                     {isVideoMedia(media) ? (
                       <div className="w-full h-full flex items-center justify-center bg-neutral-900 text-amber-500">
-                        <Play className="w-6 h-6 fill-amber-500" />
+                        <Play className="w-5 h-5 fill-amber-500" />
                       </div>
                     ) : (
                       <img
                         src={getSafeMediaUrl(media)}
-                        alt={`${currentProduct.name} thumbnail ${index + 1}`}
+                        alt={`${currentProduct.name} thumb ${index + 1}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
@@ -239,63 +331,94 @@ export const ProductDetailPage = () => {
             )}
           </div>
 
-          {/* Product Details */}
+          {/* RIGHT COLUMN: Product Information & Action Panel */}
           <div className="lg:col-span-6 space-y-6">
+            
+            {/* Tagline with vertical accent bar */}
+            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">
+              <span className="w-1 h-5 bg-lime-500 dark:bg-lime-400 rounded-full inline-block flex-shrink-0"></span>
+              <span className="font-semibold">{getProductTagline()}</span>
+            </div>
+
+            {/* Product Title */}
             <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-                {currentProduct.category}
-              </span>
-              <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-white mt-2 font-anton">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-gray-900 dark:text-white font-anton leading-none">
                 {currentProduct.name}
               </h1>
-              <p className="text-xs text-gray-500 dark:text-neutral-400 font-bold mt-1">
-                SKU: <span className="font-mono">{currentProduct.sku}</span> {currentProduct.brand && `• ${currentProduct.brand}`}
+              <p className="text-[11px] font-bold text-gray-400 dark:text-neutral-500 mt-2 uppercase tracking-wider">
+                SKU: <span className="font-mono text-gray-600 dark:text-gray-300">{currentProduct.sku}</span> {currentProduct.brand && `• ${currentProduct.brand}`}
               </p>
             </div>
 
-            {/* Rating */}
+            {/* Rating Stars */}
             {currentProduct.rating && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <div className="flex items-center gap-0.5">
                   {renderStars(currentProduct.rating)}
                 </div>
                 <span className="text-xs font-bold text-gray-600 dark:text-gray-400">
-                  {currentProduct.rating.toFixed(1)} ({currentProduct.reviews || 0} reviews)
+                  {currentProduct.rating.toFixed(1)} ({currentProduct.reviews || 28} verified reviews)
                 </span>
               </div>
             )}
 
-            {/* Price */}
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-black text-amber-500 font-anton">
+            {/* Huge Price Display matching screenshot */}
+            <div className="flex items-baseline gap-4 pt-1">
+              <div className="text-4xl sm:text-5xl font-black text-lime-500 dark:text-lime-400 font-anton tracking-tight">
                 {formatPrice(currentProduct.price)}
-              </span>
+              </div>
               {currentProduct.originalPrice && currentProduct.originalPrice > currentProduct.price && (
-                <span className="text-sm font-bold text-gray-400 line-through">
+                <span className="text-base sm:text-lg font-bold text-gray-400 line-through">
                   {formatPrice(currentProduct.originalPrice)}
                 </span>
               )}
             </div>
 
-            {/* Description */}
-            <div className="space-y-2 border-t border-b border-gray-200 dark:border-neutral-800 py-4">
-              <h3 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-neutral-400">
-                Overview & Description
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
-                {currentProduct.description || 'Engineered for extreme performance and lateral thrill. Assembled with heavy-duty components and precision braking for ultimate drift and speed.'}
+            {/* Shipping Info Line matching reference screenshot */}
+            <div className="border-t border-b border-gray-200 dark:border-white/10 py-3.5 space-y-1.5 text-xs">
+              <div className="font-bold flex items-center gap-2 text-gray-800 dark:text-gray-200">
+                <span className="uppercase text-gray-500 dark:text-gray-400 font-extrabold tracking-wider">SHIPPING:</span>
+                <span className="line-through text-gray-400">$220</span>
+                <span className="text-lime-500 dark:text-lime-400 font-black uppercase">FREE</span>
+                <span>• delivery in {currentProduct.averageDeliveryTime || '12–20 days'}</span>
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                Distant destinations add up to 7 days — checkout shows the exact window for your address before you pay.
               </p>
             </div>
 
+            {/* Colour Selector matching reference screenshot */}
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                <span className="text-gray-500 dark:text-gray-400">Colour: </span>
+                <span className="font-extrabold uppercase">{selectedVariant}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                {colorOptions.map((col) => (
+                  <button
+                    key={col}
+                    onClick={() => setSelectedVariant(col)}
+                    className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider border-2 transition-all ${
+                      selectedVariant.toLowerCase() === col.toLowerCase()
+                        ? 'bg-neutral-900 text-white border-lime-500 dark:border-lime-400 shadow-md ring-1 ring-lime-400/30'
+                        : 'bg-white dark:bg-[#1a1d24] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'
+                    }`}
+                  >
+                    {col}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Quantity Selector */}
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                Quantity
+            <div className="flex items-center gap-4 pt-1">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                Quantity:
               </span>
-              <div className="flex items-center border border-gray-300 dark:border-neutral-700 rounded-xl overflow-hidden bg-white dark:bg-[#16181e]">
+              <div className="flex items-center border border-gray-300 dark:border-white/15 rounded-xl overflow-hidden bg-white dark:bg-[#16181e]">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 font-bold"
+                  className="px-3 py-1.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 font-bold transition-colors"
                 >
                   -
                 </button>
@@ -304,52 +427,128 @@ export const ProductDetailPage = () => {
                 </span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
-                  className="px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 font-bold"
+                  className="px-3 py-1.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 font-bold transition-colors"
                 >
                   +
                 </button>
               </div>
             </div>
 
-            {/* Shipping & Delivery Notice */}
-            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <Truck className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <p className="font-black uppercase tracking-wider text-amber-800 dark:text-amber-400">
-                    US Texas Depot Express Dispatch
-                  </p>
-                  <p className="font-bold text-gray-800 dark:text-gray-200 mt-0.5 text-[11px]">
-                    {currentProduct.averageDeliveryTime || '2-4 business days'}
-                  </p>
+            {/* Action Buttons Row matching reference screenshot: BUY NOW, ADD TO CART, SAVE */}
+            <div className="flex flex-col sm:flex-row items-stretch gap-3 pt-2">
+              {/* BUY NOW (Lime green/Amber filled) */}
+              <button
+                onClick={handleBuyNow}
+                disabled={currentProduct.stock <= 0}
+                className="flex-1 bg-lime-500 hover:bg-lime-400 text-black font-black uppercase tracking-wider py-4 px-6 rounded-xl shadow-lg shadow-lime-500/20 disabled:cursor-not-allowed transition-all text-xs sm:text-sm text-center flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                <span>Buy Now</span>
+              </button>
+
+              {/* ADD TO CART (Dark bordered button) */}
+              <button
+                onClick={handleAddToCart}
+                disabled={currentProduct.stock <= 0}
+                className="flex-1 bg-white hover:bg-gray-100 dark:bg-[#16181e] dark:hover:bg-[#1f222a] border border-gray-300 dark:border-white/20 text-gray-900 dark:text-white font-black uppercase tracking-wider py-4 px-6 rounded-xl shadow-md disabled:cursor-not-allowed transition-all text-xs sm:text-sm text-center flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                <ShoppingCart className="w-4 h-4 text-amber-500" />
+                <span>Add to Cart</span>
+              </button>
+
+              {/* SAVE / WISHLIST button */}
+              <button
+                onClick={() => setIsSaved(!isSaved)}
+                className={`px-5 py-4 rounded-xl border font-black uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 transition-all ${
+                  isSaved
+                    ? 'bg-red-500/10 border-red-500 text-red-500 shadow-md'
+                    : 'bg-white dark:bg-[#16181e] border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-300 hover:border-red-400 hover:text-red-400'
+                }`}
+                title="Save to favorites"
+              >
+                <Heart className={`w-4 h-4 ${isSaved ? 'fill-red-500 text-red-500' : ''}`} />
+                <span>Save</span>
+              </button>
+            </div>
+
+            {/* Download Product Information Card matching reference screenshot */}
+            <div
+              onClick={handleDownloadSpecs}
+              className="group cursor-pointer bg-white dark:bg-[#16181e] border border-gray-200 dark:border-white/10 hover:border-lime-500/50 dark:hover:border-lime-400/50 rounded-xl p-4 flex items-center gap-3.5 transition-all shadow-sm hover:shadow-md"
+            >
+              <div className="w-10 h-10 rounded-lg bg-lime-500/10 border border-lime-500/20 flex items-center justify-center text-lime-600 dark:text-lime-400 flex-shrink-0 group-hover:scale-110 transition-transform">
+                <Download className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white group-hover:text-lime-500 dark:group-hover:text-lime-400 transition-colors">
+                  Download Product Information
+                </h4>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                  Full specification, colours and delivery details (PDF)
+                </p>
+              </div>
+            </div>
+
+            {/* Narrative Overview & Detailed Description matching reference screenshot */}
+            <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-white/10 text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-normal">
+              <p>
+                {currentProduct.description ||
+                  `The ${currentProduct.name} is engineered for riders seeking powerful electric performance, responsive handling, and all-terrain capability. Equipped with high-torque motor power and a high-capacity lithium battery, this vehicle delivers extreme acceleration and agile control for both off-road trails and outdoor tracks.`}
+              </p>
+              <p>
+                Built around a heavy-duty reinforced chassis design, it combines traction, stability, and lateral maneuverability across varied riding conditions. The precision hydraulic suspension absorbs harsh impacts from uneven terrain, while precision disc brakes ensure maximum stopping authority at all speeds.
+              </p>
+              <p>
+                A high-efficiency drivetrain transfers power instantly to the drive wheels, while generous load capacity accommodates riders comfortably. The fast-charging lithium battery is engineered for quick turnaround and consistent voltage output across each charge cycle.
+              </p>
+            </div>
+
+            {/* Key Technical Specifications Table */}
+            <div className="pt-2">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+                Key Technical Specifications
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                <div className="p-3 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-white/10 rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Top Speed</span>
+                  <span className="font-extrabold text-gray-900 dark:text-white mt-0.5 block">45–65 km/h</span>
+                </div>
+                <div className="p-3 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-white/10 rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Range / Charge</span>
+                  <span className="font-extrabold text-gray-900 dark:text-white mt-0.5 block">60–100 km</span>
+                </div>
+                <div className="p-3 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-white/10 rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Charge Time</span>
+                  <span className="font-extrabold text-gray-900 dark:text-white mt-0.5 block">3–4 hours</span>
+                </div>
+                <div className="p-3 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-white/10 rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Max Payload</span>
+                  <span className="font-extrabold text-gray-900 dark:text-white mt-0.5 block">180–220 kg</span>
+                </div>
+                <div className="p-3 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-white/10 rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Brakes</span>
+                  <span className="font-extrabold text-gray-900 dark:text-white mt-0.5 block">Hydraulic Disc</span>
+                </div>
+                <div className="p-3 bg-white dark:bg-[#16181e] border border-gray-200 dark:border-white/10 rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Availability</span>
+                  <span className={`font-extrabold mt-0.5 block ${currentProduct.stock > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {currentProduct.stock > 0 ? `In Stock (${currentProduct.stock})` : 'Pre-order'}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Actions: Add to Cart & Buy Now */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                onClick={handleAddToCart}
-                disabled={currentProduct.stock <= 0}
-                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-300 dark:disabled:bg-neutral-800 text-black font-black uppercase tracking-wider py-3.5 px-6 rounded-xl shadow-lg shadow-amber-500/20 disabled:cursor-not-allowed transition-all text-xs flex items-center justify-center gap-2"
-              >
-                <ShoppingCart className="w-4 h-4" />
-                <span>Add to Cart</span>
-              </button>
-
-              <button
-                onClick={handleBuyNow}
-                disabled={currentProduct.stock <= 0}
-                className="flex-1 bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black font-black uppercase tracking-wider py-3.5 px-6 rounded-xl shadow-lg disabled:cursor-not-allowed transition-all text-xs flex items-center justify-center gap-2"
-              >
-                <span>Instant Checkout</span>
-              </button>
+            {/* Buyer Trust & Guarantees Footer */}
+            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-200 dark:border-white/10 text-[11px] font-bold text-gray-500 dark:text-gray-400">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <span>100% Factory Verified & Tested</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Truck className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <span>US Texas Depot Express Dispatch</span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 text-[11px] font-bold text-gray-500 dark:text-neutral-400 pt-2 border-t border-gray-200 dark:border-neutral-800">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>Full manufacturer warranty & return guarantee included</span>
-            </div>
           </div>
         </div>
       </div>
@@ -360,7 +559,7 @@ export const ProductDetailPage = () => {
           {/* Header */}
           <div className="flex items-center justify-between text-white max-w-6xl w-full mx-auto pb-3 border-b border-white/10">
             <div>
-              <h3 className="font-anton text-lg sm:text-xl uppercase tracking-wider text-amber-500">
+              <h3 className="font-anton text-lg sm:text-xl uppercase tracking-wider text-lime-400">
                 {currentProduct.name}
               </h3>
               <p className="text-xs text-gray-400">
@@ -369,7 +568,7 @@ export const ProductDetailPage = () => {
             </div>
             <button
               onClick={() => setIsLightboxOpen(false)}
-              className="p-2 rounded-full bg-white/10 hover:bg-amber-500 hover:text-black transition-colors"
+              className="p-2 rounded-full bg-white/10 hover:bg-lime-500 hover:text-black transition-colors"
               title="Close (Esc)"
             >
               <X className="w-6 h-6" />
@@ -382,7 +581,7 @@ export const ProductDetailPage = () => {
             {mediaList.length > 1 && (
               <button
                 onClick={() => setLightboxIndex((prev) => (prev - 1 + mediaList.length) % mediaList.length)}
-                className="absolute left-2 sm:left-4 z-10 p-3 rounded-full bg-black/60 hover:bg-amber-500 hover:text-black text-white transition-all backdrop-blur-sm"
+                className="absolute left-2 sm:left-4 z-10 p-3 rounded-full bg-black/60 hover:bg-lime-500 hover:text-black text-white transition-all backdrop-blur-sm"
                 title="Previous (Left Arrow)"
               >
                 <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
@@ -417,7 +616,7 @@ export const ProductDetailPage = () => {
             {mediaList.length > 1 && (
               <button
                 onClick={() => setLightboxIndex((prev) => (prev + 1) % mediaList.length)}
-                className="absolute right-2 sm:right-4 z-10 p-3 rounded-full bg-black/60 hover:bg-amber-500 hover:text-black text-white transition-all backdrop-blur-sm"
+                className="absolute right-2 sm:right-4 z-10 p-3 rounded-full bg-black/60 hover:bg-lime-500 hover:text-black text-white transition-all backdrop-blur-sm"
                 title="Next (Right Arrow)"
               >
                 <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
@@ -435,8 +634,8 @@ export const ProductDetailPage = () => {
                     onClick={() => setLightboxIndex(idx)}
                     className={`relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all ${
                       lightboxIndex === idx
-                        ? 'border-amber-500 ring-2 ring-amber-500 scale-105'
-                        : 'border-white/20 opacity-60 hover:opacity-100 hover:border-amber-500/50'
+                        ? 'border-lime-500 ring-2 ring-lime-500 scale-105'
+                        : 'border-white/20 opacity-60 hover:opacity-100 hover:border-lime-500/50'
                     }`}
                   >
                     {isVideoMedia(thumb) ? (

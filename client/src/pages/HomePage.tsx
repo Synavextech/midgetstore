@@ -51,6 +51,14 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     fetchProducts()
+    if (window.location.hash === '#store-catalog') {
+      setTimeout(() => {
+        const el = document.getElementById('store-catalog')
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' })
+        }
+      }, 150)
+    }
   }, [])
 
   const formatPrice = (price: number) => {

@@ -76,10 +76,10 @@ const initialState: ProductState = {
   },
 }
 
-// Create context
 interface ProductContextType extends ProductState {
   fetchProducts: (page?: number, limit?: number) => Promise<void>
   fetchProduct: (id: string) => Promise<void>
+  fetchProductById: (id: string) => Promise<void>
   searchProducts: (query: string) => Promise<void>
   filterByCategory: (category: string | null) => Promise<void>
   clearError: () => void
@@ -154,7 +154,13 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
 
   // Fetch single product
   const fetchProduct = useCallback(async (id: string) => {
-    dispatch({ type: 'PRODUCTS_LOADING' })
+    // Check if product is already cached in state
+    const cached = state.products.find(p => p.id === id)
+    if (cached) {
+      dispatch({ type: 'PRODUCT_LOADED', payload: cached })
+    } else {
+      dispatch({ type: 'PRODUCTS_LOADING' })
+    }
 
     try {
       const response = await fetch(`${API_URL}/products/${id}`)
@@ -169,22 +175,28 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
       }
 
       if (!response.ok) {
-        const errMessage = data?.error || data?.message || `Failed to fetch product (${response.status} ${response.statusText || 'Error'})`
-        throw new Error(errMessage)
+        if (!cached) {
+          const errMessage = data?.error || data?.message || `Failed to fetch product (${response.status} ${response.statusText || 'Error'})`
+          throw new Error(errMessage)
+        }
+        return
       }
 
       if (!data || !data.data) {
-        throw new Error('Product not found')
+        if (!cached) throw new Error('Product not found')
+        return
       }
 
       dispatch({ type: 'PRODUCT_LOADED', payload: data.data })
     } catch (error) {
-      dispatch({
-        type: 'PRODUCTS_ERROR',
-        payload: error instanceof Error ? error.message : 'Failed to fetch product',
-      })
+      if (!cached) {
+        dispatch({
+          type: 'PRODUCTS_ERROR',
+          payload: error instanceof Error ? error.message : 'Failed to fetch product',
+        })
+      }
     }
-  }, [])
+  }, [state.products, API_URL])
 
   // Search products
   const searchProducts = async (query: string) => {
@@ -207,6 +219,7 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
     ...state,
     fetchProducts,
     fetchProduct,
+    fetchProductById: fetchProduct,
     searchProducts,
     filterByCategory,
     clearError,

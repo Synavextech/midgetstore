@@ -7,7 +7,7 @@ import {
   useStripe,
   useElements
 } from '@stripe/react-stripe-js'
-import { CreditCard, ShieldCheck, Truck, Lock, CheckCircle, AlertCircle } from 'lucide-react'
+import { CreditCard, Truck, Lock, CheckCircle, AlertCircle } from 'lucide-react'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { orderApi, paymentApi } from '../services/api'

@@ -99,7 +99,7 @@ export const login = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Incorrect email or password. Please check your credentials and try again.'
       })
     }
 
@@ -107,7 +107,7 @@ export const login = async (req: Request, res: Response) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        error: 'Account is deactivated'
+        error: 'Account is deactivated. Please contact support.'
       })
     }
 
@@ -115,14 +115,14 @@ export const login = async (req: Request, res: Response) => {
     if (!user.password) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Incorrect email or password. Please check your credentials and try again.'
       })
     }
     const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Incorrect email or password. Please check your credentials and try again.'
       })
     }
 

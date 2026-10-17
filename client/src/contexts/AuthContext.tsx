@@ -150,7 +150,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (!response.ok) {
-        const errMessage = data?.error || data?.message || `Login failed (${response.status} ${response.statusText || 'Error'})`
+        let errMessage = data?.error || data?.message
+        if (!errMessage || errMessage.toLowerCase().includes('invalid credential')) {
+          errMessage = 'Incorrect email or password. Please check your credentials and try again.'
+        }
         throw new Error(errMessage)
       }
 
