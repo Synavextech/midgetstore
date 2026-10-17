@@ -145,9 +145,9 @@ export const HomePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#131316] text-white selection:bg-amber-500 selection:text-black">
+    <div className="min-h-screen bg-white dark:bg-[#131316] text-gray-900 dark:text-white selection:bg-amber-500 selection:text-black transition-colors duration-200">
       {/* High-Impact Hero Section — Locally Hosted Files & Brand Tagline */}
-      <header className="relative w-full h-[64vh] min-h-[480px] max-h-[740px] flex items-center overflow-hidden bg-black border-b border-white/10">
+      <header className="relative w-full h-[64vh] min-h-[480px] max-h-[740px] flex items-center overflow-hidden bg-black border-b border-gray-200 dark:border-white/10">
         <div className="absolute inset-0 z-0">
           <img
             src="/images/hero1.jpeg"
@@ -158,7 +158,7 @@ export const HomePage: React.FC = () => {
               target.src = '/images/60v-5000w-high-speed-electric-drift-kart.webp'
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#131316] via-transparent to-black/70" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/70" />
         </div>
 
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -207,46 +207,46 @@ export const HomePage: React.FC = () => {
       </header>
 
       {/* Trust & Guarantee Strip — USD & Texas Office */}
-      <section className="bg-[#0f0f12] border-b border-white/10 py-5">
+      <section className="bg-gray-100/80 dark:bg-[#0f0f12] border-b border-gray-200 dark:border-white/10 py-5 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-500 flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-amber-500 flex-shrink-0 shadow-sm">
                 <Truck className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-[11px] font-extrabold text-white uppercase tracking-wider">US Express Shipping</h4>
-                <p className="text-[11px] text-gray-400">Texas Depot fast dispatch</p>
+                <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">US Express Shipping</h4>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">Texas Depot fast dispatch</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-blue-400 flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-blue-500 dark:text-blue-400 flex-shrink-0 shadow-sm">
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-[11px] font-extrabold text-white uppercase tracking-wider">Stripe & Card Pay</h4>
-                <p className="text-[11px] text-gray-400">Encrypted 256-bit SSL</p>
+                <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">Credit & Debit Card</h4>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">Encrypted 256-bit SSL</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-400 flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-amber-500 dark:text-amber-400 flex-shrink-0 shadow-sm">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-[11px] font-extrabold text-white uppercase tracking-wider">PayPal Protected</h4>
-                <p className="text-[11px] text-gray-400">Buyer protection policy</p>
+                <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">PayPal Protection</h4>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">Buyer protection policy</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400 flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-emerald-500 dark:text-emerald-400 flex-shrink-0 shadow-sm">
                 <Star className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-[11px] font-extrabold text-white uppercase tracking-wider">Factory Verified</h4>
-                <p className="text-[11px] text-gray-400">100% Authentic vehicles</p>
+                <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">Factory Verified</h4>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">100% Authentic vehicles</p>
               </div>
             </div>
           </div>
@@ -254,21 +254,21 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Main Catalog Section: "The Full Range" — Exact edrifttrikes.shop Layout */}
-      <section id="store-catalog" className="pt-14 pb-24 bg-[#0d0d10] text-white">
+      <section id="store-catalog" className="pt-14 pb-24 bg-gray-50 dark:bg-[#0d0d10] text-gray-900 dark:text-white transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
             <div>
               <span className="font-bold text-xs text-amber-500 uppercase tracking-widest">
                 Shop Everything
               </span>
-              <h2 className="font-anton text-4xl sm:text-5xl uppercase tracking-tight text-white mt-1">
+              <h2 className="font-anton text-4xl sm:text-5xl uppercase tracking-tight text-gray-900 dark:text-white mt-1">
                 The Full Range
               </h2>
             </div>
 
             {/* Category Filter Pills */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-              <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
@@ -276,7 +276,7 @@ export const HomePage: React.FC = () => {
                   className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
                     selectedCategory === cat.id
                       ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
-                      : 'bg-[#17171c] text-gray-300 hover:text-white border border-white/10 hover:border-amber-500/40'
+                      : 'bg-white dark:bg-[#17171c] text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-white/10 hover:border-amber-500/40 shadow-sm'
                   }`}
                 >
                   {cat.label}
@@ -287,13 +287,13 @@ export const HomePage: React.FC = () => {
 
           {/* Product Cards Grid */}
           {filteredProducts.length === 0 ? (
-            <div className="bg-[#17171c] rounded-2xl border border-white/10 p-12 text-center text-gray-400">
-              <ShoppingBag className="w-12 h-12 mx-auto text-gray-500 mb-3" />
-              <h3 className="font-anton text-2xl uppercase tracking-wider text-white mb-1">No products found</h3>
-              <p className="text-xs text-gray-400 mb-4">No rigs matching "{selectedCategory}" in catalog.</p>
+            <div className="bg-white dark:bg-[#17171c] rounded-2xl border border-gray-200 dark:border-white/10 p-12 text-center text-gray-600 dark:text-gray-400 shadow-sm">
+              <ShoppingBag className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-3" />
+              <h3 className="font-anton text-2xl uppercase tracking-wider text-gray-900 dark:text-white mb-1">No products found</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">No rigs matching "{selectedCategory}" in catalog.</p>
               <button
                 onClick={() => setSelectedCategory('all')}
-                className="bg-amber-500 text-black font-extrabold px-6 py-2.5 rounded-lg text-xs uppercase tracking-wider"
+                className="bg-amber-500 text-black font-extrabold px-6 py-2.5 rounded-lg text-xs uppercase tracking-wider hover:bg-amber-400 transition-colors"
               >
                 View Full Range
               </button>
@@ -308,12 +308,12 @@ export const HomePage: React.FC = () => {
                 return (
                   <div
                     key={product.id}
-                    className="group bg-[#17171c] border border-white/10 rounded-lg overflow-hidden flex flex-col hover-lift hover:border-amber-500 transition-all shadow-md"
+                    className="group bg-white dark:bg-[#17171c] border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden flex flex-col hover-lift hover:border-amber-500 transition-all shadow-sm dark:shadow-md"
                   >
                     {/* Aspect-square image container with Cut-Corner Badge */}
                     <Link
                       to={`/product/${product.id}`}
-                      className="relative block aspect-square overflow-hidden bg-black"
+                      className="relative block aspect-square overflow-hidden bg-gray-100 dark:bg-black"
                     >
                       {product.images && product.images.length > 0 ? (
                         <img
@@ -323,11 +323,15 @@ export const HomePage: React.FC = () => {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement
-                            target.style.display = 'none'
+                            if (!target.src.endsWith('/images/hero1.jpeg')) {
+                              target.src = '/images/hero1.jpeg'
+                            } else {
+                              target.style.display = 'none'
+                            }
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-600 text-xs">
                           No Image
                         </div>
                       )}
@@ -345,26 +349,26 @@ export const HomePage: React.FC = () => {
                     </Link>
 
                     {/* Card Body */}
-                    <div className="p-3.5 sm:p-4 flex flex-col flex-1 text-white">
+                    <div className="p-3.5 sm:p-4 flex flex-col flex-1 text-gray-900 dark:text-white">
                       <Link to={`/product/${product.id}`}>
-                        <h3 className="font-anton text-base sm:text-lg uppercase leading-tight line-clamp-2 hover:text-amber-500 transition-colors">
+                        <h3 className="font-anton text-base sm:text-lg uppercase leading-tight line-clamp-2 hover:text-amber-500 transition-colors text-gray-900 dark:text-white">
                           {product.name}
                         </h3>
                       </Link>
 
-                      <p className="text-gray-400 text-xs mt-1 line-clamp-1">
+                      <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 line-clamp-1">
                         {product.description || 'High-performance electric power with precision handling'}
                       </p>
 
                       {/* 2-Column Key Specifications with orange left border */}
-                      <div className="grid grid-cols-2 gap-2 my-3 text-[10px] uppercase font-bold border-t border-b border-white/5 py-2">
+                      <div className="grid grid-cols-2 gap-2 my-3 text-[10px] uppercase font-bold border-t border-b border-gray-100 dark:border-white/5 py-2">
                         <div className="border-l-2 border-amber-500 pl-2">
-                          <p className="text-gray-400 text-[9px] uppercase tracking-widest font-medium">Top Speed</p>
-                          <p className="font-extrabold text-white">{specs.speed}</p>
+                          <p className="text-gray-500 dark:text-gray-400 text-[9px] uppercase tracking-widest font-medium">Top Speed</p>
+                          <p className="font-extrabold text-gray-900 dark:text-white">{specs.speed}</p>
                         </div>
                         <div className="border-l-2 border-amber-500 pl-2">
-                          <p className="text-gray-400 text-[9px] uppercase tracking-widest font-medium">Range</p>
-                          <p className="font-extrabold text-white">{specs.range}</p>
+                          <p className="text-gray-500 dark:text-gray-400 text-[9px] uppercase tracking-widest font-medium">Range</p>
+                          <p className="font-extrabold text-gray-900 dark:text-white">{specs.range}</p>
                         </div>
                       </div>
 
@@ -375,31 +379,31 @@ export const HomePage: React.FC = () => {
                             {formatPrice(product.price)}
                           </span>
                           {product.originalPrice && product.originalPrice > product.price && (
-                            <span className="block text-[10px] text-gray-500 line-through">
+                            <span className="block text-[10px] text-gray-400 dark:text-gray-500 line-through">
                               {formatPrice(product.originalPrice)}
                             </span>
                           )}
                         </div>
-                        <span className="font-bold text-[9px] uppercase tracking-widest text-amber-400 border border-amber-500/40 rounded px-2 py-0.5">
+                        <span className="font-bold text-[9px] uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-transparent border border-amber-500/40 rounded px-2 py-0.5">
                           Free shipping
                         </span>
                       </div>
 
                       {/* Quantity Controls & Full-Width Add to Cart Button */}
                       <div className="mt-3 flex items-center gap-2">
-                        <div className="flex items-center border border-white/10 rounded bg-[#131316]">
+                        <div className="flex items-center border border-gray-200 dark:border-white/10 rounded bg-gray-100 dark:bg-[#131316]">
                           <button
                             type="button"
                             onClick={() => handleQuantityChange(product.id, -1)}
-                            className="p-1 text-gray-400 hover:text-white"
+                            className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                           >
                             <Minus className="w-3 h-3" />
                           </button>
-                          <span className="px-2 text-xs font-bold text-white">{qty}</span>
+                          <span className="px-2 text-xs font-bold text-gray-900 dark:text-white">{qty}</span>
                           <button
                             type="button"
                             onClick={() => handleQuantityChange(product.id, 1)}
-                            className="p-1 text-gray-400 hover:text-white"
+                            className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                           >
                             <Plus className="w-3 h-3" />
                           </button>
@@ -411,7 +415,7 @@ export const HomePage: React.FC = () => {
                           className={`flex-1 py-2 sm:py-2.5 font-extrabold text-[10px] sm:text-xs uppercase tracking-widest rounded transition-all active:scale-95 flex items-center justify-center gap-1.5 ${
                             isAdded
                               ? 'bg-green-600 text-white'
-                              : 'bg-white text-black hover:bg-amber-500 hover:text-black'
+                              : 'bg-gray-900 text-white dark:bg-white dark:text-black hover:bg-amber-500 hover:text-black dark:hover:bg-amber-500 dark:hover:text-black'
                           }`}
                         >
                           {isAdded ? (
@@ -437,9 +441,9 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Footer Matching Midget Micro Drive & Rides - Texas Head Office */}
-      <footer className="bg-[#0b0b0e] border-t border-white/10 text-white pt-16 pb-28">
+      <footer className="bg-gray-100 dark:bg-[#0b0b0e] border-t border-gray-200 dark:border-white/10 text-gray-900 dark:text-white pt-16 pb-28 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-white/10">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-gray-200 dark:border-white/10">
             {/* Col 1: Brand & Bio */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -448,63 +452,63 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="font-anton text-xl text-amber-500 tracking-wide leading-none">
-                    MIDGET <span className="text-white">MICRO DRIVES</span>
+                    MIDGET <span className="text-gray-900 dark:text-white">MICRO DRIVES</span>
                   </span>
-                  <span className="text-[9px] uppercase tracking-wider text-amber-400 font-bold">
+                  <span className="text-[9px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold">
                     small rides, big excitement
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
                 The premier American supplier of high-torque electric drift trikes, dirt bikes, racing go karts, and performance micro rides. Engineered for thrill-seekers.
               </p>
-              <div className="space-y-1.5 pt-1 text-xs text-gray-400">
-                <p className="text-white font-bold">🏢 Head Office:</p>
+              <div className="space-y-1.5 pt-1 text-xs text-gray-600 dark:text-gray-400">
+                <p className="text-gray-900 dark:text-white font-bold">🏢 Head Office:</p>
                 <p>1000 Micro Drive Way, Suite 400</p>
                 <p>Austin, TX 78701, United States</p>
-                <p className="text-amber-400 font-semibold pt-1">📞 +1 (512) 890-3450</p>
-                <p className="text-amber-400 font-semibold">✉️ support@midgetmicrodrivesandrides.shop</p>
+                <p className="text-amber-600 dark:text-amber-400 font-semibold pt-1">📞 +1 (512) 890-3450</p>
+                <p className="text-amber-600 dark:text-amber-400 font-semibold">✉️ support@midgetmicrodrivesandrides.shop</p>
               </div>
             </div>
 
             {/* Col 2: Fleet Links */}
             <div>
               <p className="font-bold text-xs text-amber-500 uppercase tracking-widest mb-4">The Fleet</p>
-              <ul className="space-y-2.5 text-xs text-gray-400 font-medium">
-                <li><a href="#store-catalog" onClick={() => setSelectedCategory('trikes')} className="hover:text-white transition-colors">Electric Drift Trikes</a></li>
-                <li><a href="#store-catalog" onClick={() => setSelectedCategory('dirt bikes')} className="hover:text-white transition-colors">Dirt Bikes & Enduro</a></li>
-                <li><a href="#store-catalog" onClick={() => setSelectedCategory('go karts')} className="hover:text-white transition-colors">Racing Go Karts & Buggies</a></li>
-                <li><a href="#store-catalog" onClick={() => setSelectedCategory('scooters')} className="hover:text-white transition-colors">Electric Scooters & ATVs</a></li>
-                <li><a href="#store-catalog" onClick={() => setSelectedCategory('all')} className="hover:text-white transition-colors">The Full Range Catalog</a></li>
+              <ul className="space-y-2.5 text-xs text-gray-600 dark:text-gray-400 font-medium">
+                <li><a href="#store-catalog" onClick={() => setSelectedCategory('trikes')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Electric Drift Trikes</a></li>
+                <li><a href="#store-catalog" onClick={() => setSelectedCategory('dirt bikes')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Dirt Bikes & Enduro</a></li>
+                <li><a href="#store-catalog" onClick={() => setSelectedCategory('go karts')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Racing Go Karts & Buggies</a></li>
+                <li><a href="#store-catalog" onClick={() => setSelectedCategory('scooters')} className="hover:text-amber-500 dark:hover:text-white transition-colors">Electric Scooters & ATVs</a></li>
+                <li><a href="#store-catalog" onClick={() => setSelectedCategory('all')} className="hover:text-amber-500 dark:hover:text-white transition-colors">The Full Range Catalog</a></li>
               </ul>
             </div>
 
             {/* Col 3: Support & Security */}
             <div>
               <p className="font-bold text-xs text-amber-500 uppercase tracking-widest mb-4">Support & Care</p>
-              <ul className="space-y-2.5 text-xs text-gray-400 font-medium">
-                <li><a href="#shipping" className="hover:text-white transition-colors">Texas Depot Express Dispatch</a></li>
-                <li><a href="#payments" className="hover:text-white transition-colors">Stripe Card & PayPal Protection</a></li>
-                <li><a href="#warranty" className="hover:text-white transition-colors">Factory Warranty & Guarantees</a></li>
-                <li><Link to="/login" className="hover:text-white transition-colors">Customer & Admin Portal</Link></li>
+              <ul className="space-y-2.5 text-xs text-gray-600 dark:text-gray-400 font-medium">
+                <li><a href="#shipping" className="hover:text-amber-500 dark:hover:text-white transition-colors">Texas Depot Express Dispatch</a></li>
+                <li><a href="#payments" className="hover:text-amber-500 dark:hover:text-white transition-colors">Card & PayPal Protection</a></li>
+                <li><a href="#warranty" className="hover:text-amber-500 dark:hover:text-white transition-colors">Factory Warranty & Guarantees</a></li>
+                <li><Link to="/login" className="hover:text-amber-500 dark:hover:text-white transition-colors">Customer & Admin Portal</Link></li>
               </ul>
             </div>
 
             {/* Col 4: Newsletter */}
             <div>
               <p className="font-bold text-xs text-amber-500 uppercase tracking-widest mb-4">Stay in the Drift</p>
-              <p className="text-xs text-gray-400 mb-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
                 Get notified first when new limited builds, battery kits, and seasonal sales drop.
               </p>
               <form onSubmit={(e) => e.preventDefault()} className="space-y-2">
                 <input
                   type="email"
                   placeholder="Enter your email"
-                  className="w-full bg-[#17171c] border border-white/10 rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white dark:bg-[#17171c] border border-gray-300 dark:border-white/10 rounded-lg px-3.5 py-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-amber-500"
                 />
                 <button
                   type="submit"
-                  className="w-full bg-amber-500 hover:bg-amber-400 text-black font-extrabold py-2.5 rounded-lg text-xs uppercase tracking-widest transition-all"
+                  className="w-full bg-amber-500 hover:bg-amber-400 text-black font-extrabold py-2.5 rounded-lg text-xs uppercase tracking-widest transition-all shadow-md shadow-amber-500/20"
                 >
                   Join VIP Dispatch
                 </button>
@@ -512,12 +516,12 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 dark:text-gray-400 gap-4">
             <p>© 2026 Midget Micro Drive & Rides (midgetmicrodrivesandrides.shop). All rights reserved. By management! All users should create an account to track order progress.</p>
             <div className="flex gap-6">
-              <a href="#privacy" className="hover:text-gray-400">Privacy</a>
-              <a href="#terms" className="hover:text-gray-400">Terms</a>
-              <a href="#contact" className="hover:text-gray-400">Texas HQ Contact</a>
+              <a href="#privacy" className="hover:text-amber-500 dark:hover:text-gray-300">Privacy</a>
+              <a href="#terms" className="hover:text-amber-500 dark:hover:text-gray-300">Terms</a>
+              <a href="#contact" className="hover:text-amber-500 dark:hover:text-gray-300">Texas HQ Contact</a>
             </div>
           </div>
         </div>
@@ -525,12 +529,12 @@ export const HomePage: React.FC = () => {
 
       {/* Floating Bottom Quick-Checkout Bar */}
       {totalItems > 0 && (
-        <div className="fixed bottom-0 inset-x-0 bg-[#131316]/95 backdrop-blur-md border-t border-white/10 p-4 shadow-2xl z-40 text-white">
+        <div className="fixed bottom-0 inset-x-0 bg-white/95 dark:bg-[#131316]/95 backdrop-blur-md border-t border-gray-200 dark:border-white/10 p-4 shadow-2xl z-40 text-gray-900 dark:text-white transition-colors">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div 
                 onClick={() => setIsCartDrawerOpen(true)}
-                className="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-amber-500 relative cursor-pointer hover:bg-white/10 transition-colors"
+                className="w-12 h-12 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl flex items-center justify-center text-amber-500 relative cursor-pointer hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
               >
                 <ShoppingCart className="w-6 h-6" />
                 <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-black text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow">
@@ -538,7 +542,7 @@ export const HomePage: React.FC = () => {
                 </span>
               </div>
               <div>
-                <p className="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Your Cart ({totalItems} items)</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Your Cart ({totalItems} items)</p>
                 <p className="font-anton text-xl text-amber-500">{formatPrice(totalPrice)}</p>
               </div>
             </div>
@@ -546,7 +550,7 @@ export const HomePage: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsCartDrawerOpen(true)}
-                className="hidden sm:inline-flex px-4 py-2.5 rounded-lg border border-white/20 text-white font-extrabold text-xs uppercase tracking-wider hover:bg-white/5 transition-colors"
+                className="hidden sm:inline-flex px-4 py-2.5 rounded-lg border border-gray-300 dark:border-white/20 text-gray-700 dark:text-white font-extrabold text-xs uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
               >
                 Review Items
               </button>
@@ -561,6 +565,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       )}
+
 
       {/* Slide-Over Quick Cart Drawer */}
       <QuickCartDrawer

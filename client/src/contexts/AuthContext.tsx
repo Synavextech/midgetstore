@@ -111,12 +111,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       })
 
-      if (response.ok) {
+      const contentType = response.headers.get('content-type') || ''
+      if (response.ok && contentType.includes('application/json')) {
         const userData = await response.json()
-        dispatch({ type: 'AUTH_SUCCESS', payload: userData.data })
-      } else {
-        localStorage.removeItem('token')
+        if (userData?.data) {
+          dispatch({ type: 'AUTH_SUCCESS', payload: userData.data })
+          return
+        }
       }
+      localStorage.removeItem('token')
     } catch (error) {
       localStorage.removeItem('token')
     }
@@ -135,10 +138,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify({ email, password }),
       })
 
-      const data = await response.json()
+      const contentType = response.headers.get('content-type') || ''
+      let data: any = null
+      if (contentType.includes('application/json')) {
+        try {
+          data = await response.json()
+        } catch {
+          data = null
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed')
+        const errMessage = data?.error || data?.message || `Login failed (${response.status} ${response.statusText || 'Error'})`
+        throw new Error(errMessage)
+      }
+
+      if (!data || !data.data?.token || !data.data?.user) {
+        throw new Error('Invalid response received from authentication server')
       }
 
       const { token, user } = data.data
@@ -164,10 +180,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify(userData),
       })
 
-      const data = await response.json()
+      const contentType = response.headers.get('content-type') || ''
+      let data: any = null
+      if (contentType.includes('application/json')) {
+        try {
+          data = await response.json()
+        } catch {
+          data = null
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed')
+        const errMessage = data?.error || data?.message || `Registration failed (${response.status} ${response.statusText || 'Error'})`
+        throw new Error(errMessage)
+      }
+
+      if (!data || !data.data?.token || !data.data?.user) {
+        throw new Error('Invalid response received from authentication server')
       }
 
       const { token, user } = data.data

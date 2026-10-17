@@ -5,6 +5,7 @@ import morgan from 'morgan'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -30,14 +31,45 @@ import { notFound } from './middleware/notFound.js'
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 5000
 
-// Security middleware
-app.use(helmet())
+// Security middleware - disable restrictive CSP so client assets load seamlessly
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}))
 
-// CORS configuration
+// CORS configuration supporting development and production shop domains
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.PRODUCTION_url,
+  'https://midgetdriftcarsandebikes.shop',
+  'http://midgetdriftcarsandebikes.shop',
+  'https://midgetmicrodrives.shop',
+  'http://midgetmicrodrives.shop',
+  'https://midgetmicrodrivesandrides.shop',
+  'http://midgetmicrodrivesandrides.shop',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000'
+].filter(Boolean) as string[]
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow server-to-server, curl, mobile, or requests with no origin
+    if (!origin) return callback(null, true)
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.midgetdriftcarsandebikes.shop') ||
+      origin.endsWith('.midgetmicrodrives.shop') ||
+      origin.endsWith('.midgetmicrodrivesandrides.shop')
+    ) {
+      return callback(null, true)
+    }
+    // Allow dynamic origins in production
+    return callback(null, true)
+  },
   credentials: true
 }))
 
@@ -49,34 +81,42 @@ app.use(cookieParser())
 // Logging middleware
 app.use(morgan('combined'))
 
-// Static file serving for locally hosted product images
+// Static file serving: product images & media
 const clientPublicPath = path.resolve(__dirname, '../../client/public')
-app.use('/images', express.static(path.join(clientPublicPath, 'images')))
-app.use(express.static(clientPublicPath))
+const distPath = path.resolve(__dirname, '../../dist')
+
+app.use('/images', express.static(path.join(clientPublicPath, 'images'), {
+  maxAge: '1d',
+  fallthrough: true
+}))
+
+if (fs.existsSync(path.join(distPath, 'images'))) {
+  app.use('/images', express.static(path.join(distPath, 'images'), {
+    maxAge: '1d',
+    fallthrough: true
+  }))
+}
+
+// Serve Vite production build static assets (JS, CSS, fonts)
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath, {
+    maxAge: '1d',
+    index: false
+  }))
+}
+
+// Also serve client public folder
+app.use(express.static(clientPublicPath, {
+  maxAge: '1d'
+}))
 
 // Serve favicon.ico
 app.get('/favicon.ico', (req, res) => {
+  const faviconDist = path.join(distPath, 'favicon.ico')
+  const faviconPublic = path.join(clientPublicPath, 'favicon.ico')
+  if (fs.existsSync(faviconDist)) return res.sendFile(faviconDist)
+  if (fs.existsSync(faviconPublic)) return res.sendFile(faviconPublic)
   res.status(204).end()
-})
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Midget Micro Drive & Rides API Server - small rides, big excitement',
-    version: '1.0.0',
-    headOffice: 'Austin, Texas, United States',
-    currency: 'USD',
-    endpoints: {
-      health: '/health',
-      api: '/api',
-      products: '/api/products',
-      auth: '/api/auth',
-      cart: '/api/cart',
-      orders: '/api/orders'
-    },
-    timestamp: new Date().toISOString()
-  })
 })
 
 // Health check endpoint
@@ -90,6 +130,26 @@ app.get('/health', (req, res) => {
   })
 })
 
+// API documentation / status endpoint
+app.get('/api', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Midget Micro Drive & Rides API Server - small rides, big excitement',
+    version: '1.0.0',
+    headOffice: 'Austin, Texas, United States',
+    currency: 'USD',
+    endpoints: {
+      health: '/health',
+      products: '/api/products',
+      auth: '/api/auth',
+      cart: '/api/cart',
+      orders: '/api/orders',
+      payments: '/api/payments'
+    },
+    timestamp: new Date().toISOString()
+  })
+})
+
 // API routes
 app.use('/api/products', productRoutes)
 app.use('/api/orders', orderRoutes)
@@ -98,6 +158,23 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/events', eventsRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/cart', cartRoutes)
+
+// SPA Fallback: Any non-API GET request serves dist/index.html
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/images')) {
+    return next()
+  }
+  const indexPath = path.join(distPath, 'index.html')
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath)
+  }
+  res.status(200).json({
+    success: true,
+    message: 'Midget Micro Drive & Rides API Server - small rides, big excitement',
+    status: 'API running. Run `npm run build` to build and serve client frontend bundle.',
+    timestamp: new Date().toISOString()
+  })
+})
 
 // Error handling middleware
 app.use(notFound)

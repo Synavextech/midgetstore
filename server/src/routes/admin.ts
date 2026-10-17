@@ -22,15 +22,20 @@ const __dirname = path.dirname(__filename)
 
 const router = express.Router()
 
-// Configure Multer storage for product uploads into client/public/images
-const uploadDir = path.resolve(__dirname, '../../../client/public/images')
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true })
+// Configure Multer storage for product uploads with dual-write into client/public/images and dist/images
+const clientImagesDir = path.resolve(__dirname, '../../../client/public/images')
+const distImagesDir = path.resolve(__dirname, '../../../dist/images')
+
+if (!fs.existsSync(clientImagesDir)) {
+  fs.mkdirSync(clientImagesDir, { recursive: true })
+}
+if (!fs.existsSync(distImagesDir)) {
+  fs.mkdirSync(distImagesDir, { recursive: true })
 }
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, uploadDir)
+    cb(null, clientImagesDir)
   },
   filename: (_req, file, cb) => {
     const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')
@@ -58,6 +63,18 @@ router.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, error: 'No image uploaded' })
   }
+
+  // Dual-write sync: copy uploaded file to dist/images for immediate live serving
+  try {
+    if (!fs.existsSync(distImagesDir)) {
+      fs.mkdirSync(distImagesDir, { recursive: true })
+    }
+    const distTarget = path.join(distImagesDir, req.file.filename)
+    fs.copyFileSync(req.file.path, distTarget)
+  } catch (syncErr) {
+    console.warn('Notice: Could not sync image to dist/images:', syncErr)
+  }
+
   const publicUrl = `/images/${req.file.filename}`
   res.status(200).json({
     success: true,

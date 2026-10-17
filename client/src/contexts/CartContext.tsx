@@ -250,12 +250,21 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         },
       })
 
-      const data = await response.json()
+      const contentType = response.headers.get('content-type') || ''
+      let data: any = null
+      if (contentType.includes('application/json')) {
+        try {
+          data = await response.json()
+        } catch {
+          data = null
+        }
+      }
 
-      if (response.ok) {
+      if (response.ok && data?.data) {
         dispatch({ type: 'CART_LOADED', payload: data.data })
       } else {
-        throw new Error(data.error || 'Failed to load cart')
+        const errMessage = data?.error || data?.message || `Failed to load cart (${response.status})`
+        throw new Error(errMessage)
       }
     } catch (error) {
       dispatch({ type: 'CART_ERROR', payload: error instanceof Error ? error.message : 'Failed to load cart' })

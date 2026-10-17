@@ -32,13 +32,34 @@ async function apiRequest<T>(
 
   try {
     const response = await fetch(url, config)
-    const data = await response.json()
+    const contentType = response.headers.get('content-type') || ''
+    const isJson = contentType.includes('application/json')
 
     if (!response.ok) {
-      throw new Error(data.error || `HTTP error! status: ${response.status}`)
+      let errorMessage = `HTTP error! status: ${response.status}`
+      if (isJson) {
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorData.message || errorMessage
+        } catch {
+          // Fallback to HTTP error
+        }
+      } else {
+        const text = await response.text()
+        if (text && !text.includes('<!DOCTYPE') && text.length < 150) {
+          errorMessage = text
+        } else {
+          errorMessage = `Endpoint ${endpoint} returned ${response.status} (${response.statusText || 'Error'})`
+        }
+      }
+      throw new Error(errorMessage)
     }
 
-    return data
+    if (!isJson) {
+      throw new Error(`Server returned non-JSON response for ${endpoint} (${contentType || 'text'})`)
+    }
+
+    return await response.json()
   } catch (error) {
     throw error
   }

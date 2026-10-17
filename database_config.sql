@@ -128,6 +128,20 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     total DECIMAL(10,2) NOT NULL
 );
 
+-- Events Table
+CREATE TABLE IF NOT EXISTS public.events (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    title TEXT NOT NULL,
+    description TEXT,
+    date DATE NOT NULL,
+    time TEXT,
+    location TEXT,
+    category TEXT DEFAULT 'general',
+    status TEXT CHECK (status IN ('upcoming', 'past', 'cancelled')) DEFAULT 'upcoming',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- =====================================================
 -- 2. ENSURE MISSING COLUMNS (Idempotent updates)
 -- =====================================================

@@ -72,7 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
-              <span className="whitespace-nowrap font-extrabold">STRIPE & PAYPAL INSTANT USD CHECKOUT</span>
+              <span className="whitespace-nowrap font-extrabold">SECURE CARD & PAYPAL CHECKOUT</span>
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
@@ -91,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
-              <span className="whitespace-nowrap font-extrabold">STRIPE & PAYPAL INSTANT USD CHECKOUT</span>
+              <span className="whitespace-nowrap font-extrabold">SECURE CARD & PAYPAL CHECKOUT</span>
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
@@ -101,8 +101,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
         </div>
       </aside>
 
-      {/* Main Navbar — Sticky Dark Motorsport Header */}
-      <nav className="w-full top-0 sticky z-50 border-b bg-[#131316] border-white/10 text-white shadow-xl">
+      {/* Main Navbar — Responsive Motorsport Header */}
+      <nav className="w-full top-0 sticky z-50 border-b bg-white/95 dark:bg-[#131316]/95 backdrop-blur-md border-gray-200 dark:border-white/10 text-gray-900 dark:text-white shadow-sm dark:shadow-xl transition-colors duration-200">
         <div className="flex justify-between items-center w-full px-4 sm:px-6 md:px-8 py-3.5 max-w-7xl mx-auto gap-4">
           {/* Brand Logo for Midget Micro Drive & Rides */}
           <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
@@ -112,26 +112,26 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             <div className="flex flex-col">
               <span className="font-anton text-xl md:text-2xl tracking-wide leading-none">
                 <span className="text-amber-500">MIDGET</span>
-                <span className="text-white"> MICRO DRIVES</span>
+                <span className="text-gray-900 dark:text-white"> MICRO DRIVES</span>
               </span>
-              <span className="text-[9px] uppercase tracking-wider text-amber-400 font-bold hidden sm:inline -mt-0.5">
+              <span className="text-[9px] uppercase tracking-wider text-amber-500 dark:text-amber-400 font-bold hidden sm:inline -mt-0.5">
                 small rides, big excitement
               </span>
             </div>
           </Link>
 
           {/* Center Navigation Links */}
-          <div className="hidden md:flex items-center gap-8 font-bold text-xs uppercase tracking-widest text-gray-300">
-            <a href="/#store-catalog" className="hover:text-amber-400 transition-colors">
+          <div className="hidden md:flex items-center gap-8 font-bold text-xs uppercase tracking-widest text-gray-700 dark:text-gray-300">
+            <a href="/#store-catalog" className="hover:text-amber-500 dark:hover:text-amber-400 transition-colors">
               Trikes
             </a>
-            <a href="/#store-catalog" className="hover:text-amber-400 transition-colors">
+            <a href="/#store-catalog" className="hover:text-amber-500 dark:hover:text-amber-400 transition-colors">
               Dirt Bikes
             </a>
-            <a href="/#store-catalog" className="hover:text-amber-400 transition-colors">
+            <a href="/#store-catalog" className="hover:text-amber-500 dark:hover:text-amber-400 transition-colors">
               Go Karts
             </a>
-            <a href="/#store-catalog" className="hover:text-amber-400 transition-colors">
+            <a href="/#store-catalog" className="hover:text-amber-500 dark:hover:text-amber-400 transition-colors">
               The Full Range
             </a>
           </div>
@@ -141,7 +141,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             {/* Search Toggle */}
             <button
               onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-white/10 hover:text-amber-400 transition-colors text-gray-300"
+              className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-white/10 hover:text-amber-500 dark:hover:text-amber-400 transition-colors text-gray-700 dark:text-gray-300"
               title="Search catalog"
             >
               <Search className="w-5 h-5" />
@@ -150,7 +150,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             {/* Wishlist / Parts Bin */}
             <Link
               to="/wishlist"
-              className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-white/10 hover:text-amber-400 transition-colors text-gray-300"
+              className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-white/10 hover:text-amber-500 dark:hover:text-amber-400 transition-colors text-gray-700 dark:text-gray-300"
               title="Parts Bin / Saved Items"
             >
               <Heart className="w-5 h-5" />
@@ -159,7 +159,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             {/* Cart Button with Counter */}
             <button
               onClick={handleCartClick}
-              className="relative h-10 w-10 flex items-center justify-center rounded-full hover:bg-white/10 hover:text-amber-400 transition-colors text-gray-300"
+              className="relative h-10 w-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-white/10 hover:text-amber-500 dark:hover:text-amber-400 transition-colors text-gray-700 dark:text-gray-300"
               title="Open Cart"
             >
               <ShoppingCart className="w-5 h-5" />
@@ -173,14 +173,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-white/10 hover:text-amber-400 transition-colors text-gray-300"
+              className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-white/10 hover:text-amber-500 dark:hover:text-amber-400 transition-colors text-gray-700 dark:text-gray-300"
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               aria-label="Toggle Theme"
             >
               {theme === 'dark' ? (
-                <Sun className="w-5 h-5 text-amber-400 hover:rotate-45 transition-transform" />
+                <Sun className="w-5 h-5 text-amber-500 hover:rotate-45 transition-transform" />
               ) : (
-                <Moon className="w-5 h-5 text-amber-400 hover:-rotate-12 transition-transform" />
+                <Moon className="w-5 h-5 text-amber-500 hover:-rotate-12 transition-transform" />
               )}
             </button>
 
@@ -190,25 +190,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                 <div className="relative">
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-full bg-white/5 border border-white/10 hover:border-amber-500 text-gray-200 transition-all text-xs font-bold"
+                    className="flex items-center gap-2 py-1.5 px-3 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-300 dark:border-white/10 hover:border-amber-500 text-gray-900 dark:text-gray-200 transition-all text-xs font-bold"
                   >
                     <div className="w-6 h-6 rounded-full bg-amber-500 text-black font-black flex items-center justify-center text-[10px]">
                       {user?.firstName ? user.firstName[0].toUpperCase() : 'U'}
                     </div>
                     <span className="hidden lg:inline">{user?.firstName || 'Account'}</span>
                     {user?.role === 'ADMIN' && (
-                      <span className="bg-purple-600/30 text-purple-300 border border-purple-500/40 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">
+                      <span className="bg-purple-600/30 text-purple-600 dark:text-purple-300 border border-purple-500/40 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">
                         Admin
                       </span>
                     )}
                   </button>
 
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-56 bg-[#17171c] border border-white/10 rounded-2xl shadow-2xl py-2 z-50 text-white backdrop-blur-2xl">
-                      <div className="px-4 py-2.5 border-b border-white/10">
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Signed in as</p>
-                        <p className="text-xs font-bold text-white truncate">{user?.email}</p>
-                        <span className="inline-block mt-1 text-[9px] font-extrabold px-2 py-0.5 rounded bg-white/10 text-amber-400">
+                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#17171c] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl py-2 z-50 text-gray-900 dark:text-white backdrop-blur-2xl">
+                      <div className="px-4 py-2.5 border-b border-gray-100 dark:border-white/10">
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">Signed in as</p>
+                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{user?.email}</p>
+                        <span className="inline-block mt-1 text-[9px] font-extrabold px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-amber-600 dark:text-amber-400">
                           {user?.role}
                         </span>
                       </div>
@@ -217,7 +217,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                         <Link
                           to="/admin"
                           onClick={() => setShowUserMenu(false)}
-                          className="flex items-center px-4 py-2.5 text-xs font-bold text-purple-300 hover:bg-white/5 transition-colors"
+                          className="flex items-center px-4 py-2.5 text-xs font-bold text-purple-600 dark:text-purple-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                         >
                           <Settings className="mr-2 h-4 w-4" />
                           Admin Dashboard
@@ -227,9 +227,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                       <Link
                         to="/checkout"
                         onClick={() => setShowUserMenu(false)}
-                        className="flex items-center px-4 py-2.5 text-xs font-bold text-gray-200 hover:bg-white/5 transition-colors"
+                        className="flex items-center px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                       >
-                        <ShoppingCart className="mr-2 h-4 w-4 text-amber-400" />
+                        <ShoppingCart className="mr-2 h-4 w-4 text-amber-500" />
                         Proceed to Checkout
                       </Link>
 
@@ -238,7 +238,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                           setShowUserMenu(false)
                           logout()
                         }}
-                        className="flex items-center w-full px-4 py-2 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="flex items-center w-full px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                       >
                         <LogOut className="mr-2 h-4 w-4" />
                         Logout
@@ -285,7 +285,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
 
         {/* Dropdown Desktop Search Bar */}
         {isSearchOpen && (
-          <div className="border-t border-white/10 bg-[#17171c] py-3 px-4">
+          <div className="border-t border-gray-200 dark:border-white/10 bg-white dark:bg-[#17171c] py-3 px-4 shadow-md transition-colors">
             <form onSubmit={handleSearch} className="max-w-2xl mx-auto flex items-center gap-2">
               <div className="relative flex-1">
                 <input
@@ -294,9 +294,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus
-                  className="w-full bg-[#131316] border border-white/20 rounded-xl px-4 py-2.5 pl-10 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  className="w-full bg-gray-100 dark:bg-[#131316] border border-gray-300 dark:border-white/20 rounded-xl px-4 py-2.5 pl-10 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                 />
-                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                <Search className="w-4 h-4 text-gray-500 dark:text-gray-400 absolute left-3.5 top-3" />
               </div>
               <button
                 type="submit"
@@ -307,7 +307,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(false)}
-                className="p-2 text-gray-400 hover:text-white"
+                className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -326,25 +326,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
           />
 
           {/* Drawer Panel */}
-          <aside className="absolute top-0 right-0 h-full w-[86%] max-w-sm bg-[#131316] border-l border-white/10 flex flex-col shadow-2xl text-white">
+          <aside className="absolute top-0 right-0 h-full w-[86%] max-w-sm bg-white dark:bg-[#131316] border-l border-gray-200 dark:border-white/10 flex flex-col shadow-2xl text-gray-900 dark:text-white transition-colors">
             {/* Drawer Header */}
-            <div className="flex items-center justify-between px-5 h-16 border-b border-white/10 shrink-0">
+            <div className="flex items-center justify-between px-5 h-16 border-b border-gray-200 dark:border-white/10 shrink-0">
               <span className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-lg bg-amber-500 flex items-center justify-center font-black text-black text-lg">
                   ⚡
                 </div>
                 <div className="flex flex-col">
                   <span className="font-anton text-lg text-amber-500 tracking-wide leading-none">
-                    MIDGET <span className="text-white">MICRO DRIVES</span>
+                    MIDGET <span className="text-gray-900 dark:text-white">MICRO DRIVES</span>
                   </span>
-                  <span className="text-[8px] uppercase tracking-wider text-amber-400 font-bold">
+                  <span className="text-[8px] uppercase tracking-wider text-amber-500 dark:text-amber-400 font-bold">
                     small rides, big excitement
                   </span>
                 </div>
               </span>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="h-10 w-10 flex items-center justify-center rounded-full text-gray-300 hover:text-amber-400"
+                className="h-10 w-10 flex items-center justify-center rounded-full text-gray-600 dark:text-gray-300 hover:text-amber-500"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -359,7 +359,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                   placeholder="Search rigs, parts, gear..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#1a1a20] border border-white/10 rounded-lg px-4 h-12 pl-10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-gray-100 dark:bg-[#1a1a20] border border-gray-300 dark:border-white/10 rounded-lg px-4 h-12 pl-10 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:border-amber-500"
                 />
                 <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-4" />
               </form>
@@ -373,34 +373,34 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                   <a
                     href="/#store-catalog"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between h-12 text-white font-anton text-xl uppercase border-b border-white/5 hover:text-amber-400"
+                    className="flex items-center justify-between h-12 text-gray-900 dark:text-white font-anton text-xl uppercase border-b border-gray-100 dark:border-white/5 hover:text-amber-500 dark:hover:text-amber-400"
                   >
                     All Rigs
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
                   </a>
                   <a
                     href="/#store-catalog"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between h-12 text-white font-anton text-xl uppercase border-b border-white/5 hover:text-amber-400"
+                    className="flex items-center justify-between h-12 text-gray-900 dark:text-white font-anton text-xl uppercase border-b border-gray-100 dark:border-white/5 hover:text-amber-500 dark:hover:text-amber-400"
                   >
                     Trikes
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
                   </a>
                   <a
                     href="/#store-catalog"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between h-12 text-white font-anton text-xl uppercase border-b border-white/5 hover:text-amber-400"
+                    className="flex items-center justify-between h-12 text-gray-900 dark:text-white font-anton text-xl uppercase border-b border-gray-100 dark:border-white/5 hover:text-amber-500 dark:hover:text-amber-400"
                   >
                     Dirt Bikes
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
                   </a>
                   <a
                     href="/#store-catalog"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between h-12 text-white font-anton text-xl uppercase border-b border-white/5 hover:text-amber-400"
+                    className="flex items-center justify-between h-12 text-gray-900 dark:text-white font-anton text-xl uppercase border-b border-gray-100 dark:border-white/5 hover:text-amber-500 dark:hover:text-amber-400"
                   >
                     Go Karts & Electric
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
                   </a>
                 </nav>
               </div>
@@ -414,21 +414,21 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                   <Link
                     to="/about"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center h-10 text-gray-300 hover:text-white font-bold uppercase tracking-widest text-xs border-b border-white/5"
+                    className="flex items-center h-10 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-bold uppercase tracking-widest text-xs border-b border-gray-100 dark:border-white/5"
                   >
                     About Us
                   </Link>
                   <a
                     href="#support"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center h-10 text-gray-300 hover:text-white font-bold uppercase tracking-widest text-xs border-b border-white/5"
+                    className="flex items-center h-10 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-bold uppercase tracking-widest text-xs border-b border-gray-100 dark:border-white/5"
                   >
                     Support & Help
                   </a>
                   <a
                     href="#shipping"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center h-10 text-gray-300 hover:text-white font-bold uppercase tracking-widest text-xs border-b border-white/5"
+                    className="flex items-center h-10 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-bold uppercase tracking-widest text-xs border-b border-gray-100 dark:border-white/5"
                   >
                     Shipping & Warranty
                   </a>
@@ -444,7 +444,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                   <Link
                     to={isAuthenticated ? (user?.role === 'ADMIN' ? '/admin' : '/checkout') : '/login'}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex flex-col items-center justify-center gap-1.5 bg-[#1a1a20] border border-white/10 rounded-lg py-3.5 text-gray-300 hover:text-amber-400 transition-colors"
+                    className="flex flex-col items-center justify-center gap-1.5 bg-gray-50 dark:bg-[#1a1a20] border border-gray-200 dark:border-white/10 rounded-lg py-3.5 text-gray-700 dark:text-gray-300 hover:text-amber-500 transition-colors"
                   >
                     <User className="w-5 h-5" />
                     <span className="text-[10px] font-extrabold uppercase tracking-widest">
@@ -455,7 +455,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                   <Link
                     to="/wishlist"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex flex-col items-center justify-center gap-1.5 bg-[#1a1a20] border border-white/10 rounded-lg py-3.5 text-gray-300 hover:text-amber-400 transition-colors"
+                    className="flex flex-col items-center justify-center gap-1.5 bg-gray-50 dark:bg-[#1a1a20] border border-gray-200 dark:border-white/10 rounded-lg py-3.5 text-gray-700 dark:text-gray-300 hover:text-amber-500 transition-colors"
                   >
                     <Heart className="w-5 h-5" />
                     <span className="text-[10px] font-extrabold uppercase tracking-widest">Parts Bin</span>
@@ -466,7 +466,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                       setMobileMenuOpen(false)
                       handleCartClick()
                     }}
-                    className="flex flex-col items-center justify-center gap-1.5 bg-[#1a1a20] border border-white/10 rounded-lg py-3.5 text-gray-300 hover:text-amber-400 transition-colors relative"
+                    className="flex flex-col items-center justify-center gap-1.5 bg-gray-50 dark:bg-[#1a1a20] border border-gray-200 dark:border-white/10 rounded-lg py-3.5 text-gray-700 dark:text-gray-300 hover:text-amber-500 transition-colors relative"
                   >
                     <ShoppingCart className="w-5 h-5" />
                     {totalItems > 0 && (
@@ -481,7 +481,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             </div>
 
             {/* Drawer Bottom Actions */}
-            <div className="p-5 border-t border-white/10 shrink-0 space-y-3 bg-[#0f0f12]">
+            <div className="p-5 border-t border-gray-200 dark:border-white/10 shrink-0 space-y-3 bg-gray-50 dark:bg-[#0f0f12]">
               <a
                 href="/#store-catalog"
                 onClick={() => setMobileMenuOpen(false)}
@@ -493,7 +493,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                 <Link
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block text-center text-gray-400 py-1 font-bold uppercase tracking-widest text-[11px] hover:text-white"
+                  className="block text-center text-gray-600 dark:text-gray-400 py-1 font-bold uppercase tracking-widest text-[11px] hover:text-gray-900 dark:hover:text-white"
                 >
                   Sign In / Register
                 </Link>
@@ -503,7 +503,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
                     setMobileMenuOpen(false)
                     logout()
                   }}
-                  className="w-full text-center text-red-400 py-1 font-bold uppercase tracking-widest text-[11px] hover:text-red-300"
+                  className="w-full text-center text-red-500 py-1 font-bold uppercase tracking-widest text-[11px] hover:text-red-400"
                 >
                   Log Out
                 </button>

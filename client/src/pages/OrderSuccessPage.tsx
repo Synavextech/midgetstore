@@ -33,7 +33,7 @@ const OrderSuccessPage = () => {
           </div>
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm text-gray-500 font-medium">Payment Method:</span>
-            <span className="text-sm font-semibold text-gray-800">{paymentMethod}</span>
+            <span className="text-sm font-semibold text-gray-800">{paymentMethod === 'STRIPE' ? 'Credit / Debit Card' : paymentMethod === 'PAYPAL' ? 'PayPal' : paymentMethod}</span>
           </div>
           {total && (
             <div className="flex justify-between items-center mb-3">

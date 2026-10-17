@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CreditCard, ShieldCheck, Truck, Lock, CheckCircle, ExternalLink } from 'lucide-react'
+import { CreditCard, ShieldCheck, Truck, Lock, CheckCircle, ExternalLink, AlertCircle, X } from 'lucide-react'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { orderApi, paymentApi } from '../services/api'
@@ -34,6 +34,8 @@ export const CheckoutPage = () => {
   const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'PAYPAL'>('STRIPE')
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingStep, setProcessingStep] = useState<string>('')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const errorRef = useRef<HTMLDivElement>(null)
 
   // Card details for Stripe direct entry
   const [cardData, setCardData] = useState({
@@ -67,6 +69,7 @@ export const CheckoutPage = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
+    if (errorMessage) setErrorMessage(null)
     setShippingData(prev => ({
       ...prev,
       [name]: value
@@ -75,6 +78,7 @@ export const CheckoutPage = () => {
 
   const handleCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
+    if (errorMessage) setErrorMessage(null)
     // Format card number with spaces every 4 digits
     if (name === 'cardNumber') {
       const cleaned = value.replace(/\D/g, '').slice(0, 16)
@@ -105,36 +109,41 @@ export const CheckoutPage = () => {
     }
 
     if (!shippingData.firstName || !shippingData.lastName || !shippingData.address1 || !shippingData.city || !shippingData.zipCode) {
-      alert('Please fill in all required shipping address fields.')
+      setErrorMessage('Please fill in all required shipping address fields (First Name, Last Name, Address, City, ZIP Code).')
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
       return
     }
 
     if (paymentMethod === 'STRIPE') {
       if (!cardData.cardNumber || cardData.cardNumber.replace(/\s/g, '').length < 15) {
-        alert('Please enter a valid 15 or 16-digit card number.')
+        setErrorMessage('Please enter a valid 15 or 16-digit card number.')
+        setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
         return
       }
       if (!cardData.expDate || cardData.expDate.length < 5) {
-        alert('Please enter a valid expiration date (MM/YY).')
+        setErrorMessage('Please enter a valid expiration date (MM/YY).')
+        setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
         return
       }
       if (!cardData.cvc || cardData.cvc.length < 3) {
-        alert('Please enter a valid 3 or 4-digit security code (CVC).')
+        setErrorMessage('Please enter a valid 3 or 4-digit security code (CVC).')
+        setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
         return
       }
     }
 
+    setErrorMessage(null)
     setIsProcessing(true)
 
     try {
       let paymentRecordId = ''
 
       if (paymentMethod === 'STRIPE') {
-        setProcessingStep('Creating secure Stripe Payment Intent...')
+        setProcessingStep('Initializing secure card checkout...')
         const intentRes = await paymentApi.createStripePaymentIntent(grandTotal)
         const paymentIntentId = intentRes.data?.paymentIntentId || `pi_stripe_${Date.now()}`
 
-        setProcessingStep('Confirming card payment with Stripe network...')
+        setProcessingStep('Authorizing payment transaction securely...')
         await new Promise(r => setTimeout(r, 900))
         const confirmRes = await paymentApi.confirmStripePayment(paymentIntentId).catch(() => ({
           success: true,
@@ -143,11 +152,11 @@ export const CheckoutPage = () => {
 
         paymentRecordId = confirmRes.data?.paymentId || paymentIntentId
       } else if (paymentMethod === 'PAYPAL') {
-        setProcessingStep('Initializing PayPal Express Checkout...')
+        setProcessingStep('Connecting to PayPal Express...')
         const ppRes = await paymentApi.createPayPalOrder(grandTotal)
         const ppOrderId = ppRes.data?.orderId || `PAYPAL-${Date.now()}`
 
-        setProcessingStep('Capturing PayPal payment...')
+        setProcessingStep('Finalizing PayPal transaction...')
         await new Promise(r => setTimeout(r, 900))
         const captureRes = await paymentApi.capturePayPalPayment(ppOrderId).catch(() => ({
           success: true,
@@ -157,7 +166,7 @@ export const CheckoutPage = () => {
         paymentRecordId = captureRes.data?.paymentId || ppOrderId
       }
 
-      setProcessingStep('Logging order in Supabase database...')
+      setProcessingStep('Finalizing and placing your order...')
       // Persist order in Supabase via backend API
       const orderRes = await orderApi.createOrder({
         items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
@@ -181,7 +190,8 @@ export const CheckoutPage = () => {
       })
     } catch (error: any) {
       console.error('Payment checkout error:', error)
-      alert(`Checkout failed: ${error.message || 'Please check your payment information and try again.'}`)
+      setErrorMessage(error.message || 'Payment processing was unsuccessful. Please verify your details and try again.')
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
     } finally {
       setIsProcessing(false)
       setProcessingStep('')
@@ -222,14 +232,43 @@ export const CheckoutPage = () => {
               Express Checkout (USD)
             </h1>
             <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1 font-medium">
-              Encrypted 256-bit Stripe Card and PayPal checkout with expedited courier dispatch.
+              Encrypted 256-bit secure card and PayPal checkout with expedited courier dispatch.
             </p>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 px-3 py-1.5 rounded-full">
             <ShieldCheck className="w-4 h-4" />
-            Stripe & PayPal Verified
+            256-Bit SSL Encrypted
           </div>
         </div>
+
+        {/* Global In-UI Checkout Error Banner */}
+        {errorMessage && (
+          <div
+            ref={errorRef}
+            className="mb-6 p-4 rounded-2xl border border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 flex items-start justify-between gap-3 shadow-md animate-fadeIn"
+            role="alert"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-red-800 dark:text-red-200">
+                  Unable to Complete Checkout
+                </h4>
+                <p className="text-xs mt-0.5 font-medium leading-relaxed text-red-700 dark:text-red-300">
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              className="text-red-400 hover:text-red-700 dark:hover:text-red-200 transition-colors p-1"
+              aria-label="Dismiss error"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column: Shipping & Payment Method */}
@@ -382,12 +421,12 @@ export const CheckoutPage = () => {
               </form>
             </div>
 
-            {/* 2. Payment Method: Stripe or PayPal ONLY */}
+            {/* 2. Payment Method */}
             <div className="bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-xl p-6 transition-colors">
               <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-neutral-800 pb-3">
                 <h2 className="text-base font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-amber-500" />
-                  2. Payment Method (Stripe & PayPal)
+                  2. Payment Method
                 </h2>
                 <span className="text-[10px] uppercase font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">
                   USD Currency
@@ -395,7 +434,7 @@ export const CheckoutPage = () => {
               </div>
 
               <div className="space-y-4">
-                {/* Option 1: Stripe Card Checkout */}
+                {/* Option 1: Credit / Debit Card Checkout */}
                 <label
                   className={`block p-4 border rounded-xl cursor-pointer transition-all ${
                     paymentMethod === 'STRIPE'
@@ -410,17 +449,20 @@ export const CheckoutPage = () => {
                         name="paymentMethod"
                         value="STRIPE"
                         checked={paymentMethod === 'STRIPE'}
-                        onChange={() => setPaymentMethod('STRIPE')}
+                        onChange={() => {
+                          setPaymentMethod('STRIPE')
+                          if (errorMessage) setErrorMessage(null)
+                        }}
                         className="w-4 h-4 text-amber-500 focus:ring-amber-400 accent-amber-500"
                       />
                       <CreditCard className="w-5 h-5 text-blue-500" />
                       <div>
-                        <p className="font-bold text-sm text-gray-900 dark:text-white">Credit / Debit Card (via Stripe)</p>
+                        <p className="font-bold text-sm text-gray-900 dark:text-white">Credit / Debit Card</p>
                         <p className="text-[11px] text-gray-500 dark:text-neutral-400">Visa, Mastercard, American Express, Discover</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
-                      Stripe Live
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                      Instant & Encrypted
                     </span>
                   </div>
 
@@ -497,7 +539,10 @@ export const CheckoutPage = () => {
                         name="paymentMethod"
                         value="PAYPAL"
                         checked={paymentMethod === 'PAYPAL'}
-                        onChange={() => setPaymentMethod('PAYPAL')}
+                        onChange={() => {
+                          setPaymentMethod('PAYPAL')
+                          if (errorMessage) setErrorMessage(null)
+                        }}
                         className="w-4 h-4 text-amber-500 focus:ring-amber-400 accent-amber-500"
                       />
                       <div className="w-6 h-6 rounded bg-[#003087] flex items-center justify-center font-black text-white text-xs">
@@ -509,7 +554,7 @@ export const CheckoutPage = () => {
                       </div>
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
-                      PayPal Live
+                      Buyer Protection
                     </span>
                   </div>
 
@@ -593,6 +638,13 @@ export const CheckoutPage = () => {
                 </div>
               </div>
 
+              {errorMessage && (
+                <div className="mt-4 p-3 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                  <span className="font-medium text-[11px] leading-snug">{errorMessage}</span>
+                </div>
+              )}
+
               <button
                 onClick={handlePayment}
                 disabled={isProcessing}
@@ -605,7 +657,7 @@ export const CheckoutPage = () => {
                   </>
                 ) : (
                   <span>
-                    Confirm & Pay {formatPrice(grandTotal)} with {paymentMethod === 'STRIPE' ? 'Stripe' : 'PayPal'}
+                    Confirm & Pay {formatPrice(grandTotal)} with {paymentMethod === 'STRIPE' ? 'Card' : 'PayPal'}
                   </span>
                 )}
               </button>

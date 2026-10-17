@@ -118,11 +118,23 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
       }
 
       const response = await fetch(`${API_URL}/products?${params}`)
-
-      const data = await response.json()
+      const contentType = response.headers.get('content-type') || ''
+      let data: any = null
+      if (contentType.includes('application/json')) {
+        try {
+          data = await response.json()
+        } catch {
+          data = null
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch products')
+        const errMessage = data?.error || data?.message || `Failed to fetch products (${response.status} ${response.statusText || 'Error'})`
+        throw new Error(errMessage)
+      }
+
+      if (!data || !Array.isArray(data.data)) {
+        throw new Error('Invalid products data received from server')
       }
 
       dispatch({
@@ -146,11 +158,23 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children }) =>
 
     try {
       const response = await fetch(`${API_URL}/products/${id}`)
-
-      const data = await response.json()
+      const contentType = response.headers.get('content-type') || ''
+      let data: any = null
+      if (contentType.includes('application/json')) {
+        try {
+          data = await response.json()
+        } catch {
+          data = null
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch product')
+        const errMessage = data?.error || data?.message || `Failed to fetch product (${response.status} ${response.statusText || 'Error'})`
+        throw new Error(errMessage)
+      }
+
+      if (!data || !data.data) {
+        throw new Error('Product not found')
       }
 
       dispatch({ type: 'PRODUCT_LOADED', payload: data.data })

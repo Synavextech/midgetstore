@@ -14,10 +14,10 @@
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "cd server && npx tsc",
-    "start": "npm run start:client && npm run start:server",
+    "start": "node server/dist/index.js",
     "start:client": "vite preview",
-    "start:server": "cd server && tsx dist/index.js",
-    "clean": "rm -rf dist && cd server && rm -rf dist",
+    "start:server": "node server/dist/index.js",
+    "clean": "rm -rf dist && rm -rf server/dist",
     "admin:create": "node create-admin.js"
   },
   "type": "module",

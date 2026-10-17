@@ -446,7 +446,7 @@ export const AdminDashboard: React.FC = () => {
               <div>
                 <h3 className="font-anton text-lg uppercase text-gray-900 dark:text-white">Texas Head Office Configuration</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  HQ: 1000 Micro Drive Way, Suite 400, Austin, TX 78701 • Orders route to Stripe & PayPal Live
+                  HQ: 1000 Micro Drive Way, Suite 400, Austin, TX 78701 • Orders route to Stripe & PayPal Gateways
                 </p>
               </div>
               <button
