@@ -1,14 +1,49 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
-import { CheckCircle, Package, Home, Loader2, AlertCircle } from 'lucide-react'
+import {
+  CheckCircle,
+  Package,
+  Home,
+  Loader2,
+  AlertCircle,
+  Download,
+  Printer,
+  Copy,
+  Check,
+  FileText
+} from 'lucide-react'
 import { paymentApi, orderApi } from '../services/api'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
+
+export interface OrderReceiptData {
+  date: string
+  orderDate: string
+  orderNumber: string
+  transactionId: string
+  userName: string
+  address: string
+  paymentSource: string
+  initialCharge: string
+  finalCost: string
+  totalRefund: string
+  refundTrans: string
+  shippingCost?: string
+  tax?: string
+  items?: Array<{
+    name: string
+    quantity: number
+    price: string
+    total: string
+  }>
+}
 
 interface LocationState {
   orderNumber?: string
   total?: number
   paymentMethod?: string
+  shippingAddress?: string
+  receiptData?: OrderReceiptData
 }
 
 const OrderSuccessPage = () => {
@@ -18,9 +53,29 @@ const OrderSuccessPage = () => {
   const { clearCart } = useCart()
 
   const state = (location.state as LocationState) || {}
-  const [orderNumber, setOrderNumber] = useState<string>(state.orderNumber || '')
-  const [paymentMethod, setPaymentMethod] = useState<string>(state.paymentMethod || 'STRIPE')
-  const [total, setTotal] = useState<number | null>(state.total || null)
+
+  // Restore cached receipt if page was refreshed
+  const getCachedReceipt = (): OrderReceiptData | null => {
+    try {
+      const saved = localStorage.getItem('latest_order_receipt')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  }
+
+  const initialReceipt = state.receiptData || getCachedReceipt()
+
+  const [receipt, setReceipt] = useState<OrderReceiptData | null>(initialReceipt)
+  const [orderNumber, setOrderNumber] = useState<string>(
+    state.orderNumber || initialReceipt?.orderNumber || ''
+  )
+  const [paymentMethod, setPaymentMethod] = useState<string>(
+    state.paymentMethod || (initialReceipt?.paymentSource?.includes('PayPal') ? 'PAYPAL' : 'STRIPE')
+  )
+  const [total, setTotal] = useState<number | null>(
+    state.total || (initialReceipt?.finalCost ? parseFloat(initialReceipt.finalCost.replace(/[^0-9.]/g, '')) : null)
+  )
 
   const [loadingPayPal, setLoadingPayPal] = useState(false)
   const [payPalError, setPayPalError] = useState<string | null>(null)
@@ -42,17 +97,74 @@ const OrderSuccessPage = () => {
             throw new Error(captureRes.error || 'Failed to capture PayPal payment')
           }
 
+          const orderPayload = parsed.orderData || {
+            items: (parsed.items || []).map((i: any) => ({
+              productId: i.productId || i.id,
+              quantity: i.quantity || 1
+            })),
+            paymentMethod: 'PAYPAL',
+            shippingAddress: {
+              firstName: parsed.shippingData?.firstName || 'Valued',
+              lastName: parsed.shippingData?.lastName || 'Customer',
+              email: parsed.shippingData?.email || '',
+              phone: parsed.shippingData?.phone || '',
+              address1: parsed.shippingData?.address1 || '',
+              address2: parsed.shippingData?.address2 || '',
+              city: parsed.shippingData?.city || '',
+              state: parsed.shippingData?.state || '',
+              postalCode: parsed.shippingData?.zipCode || '',
+              country: parsed.shippingData?.country || 'United States'
+            },
+            createAccount: parsed.createAccount,
+            password: parsed.accountPassword,
+            notes: `US Texas Depot Express Delivery. Paid & Settled via PAYPAL (${captureRes.data.paymentId})`
+          }
+
           // 2. Finalize and settle order in database
           const createRes = await orderApi.createOrder({
-            ...parsed.orderData,
+            ...orderPayload,
             paymentId: captureRes.data.paymentId,
             paymentStatus: 'COMPLETED'
           })
 
           if (createRes.data) {
-            setOrderNumber(createRes.data.orderNumber)
+            const confirmedOrderNumber = createRes.data.orderNumber || `ORD-${Date.now()}`
+            setOrderNumber(confirmedOrderNumber)
             setPaymentMethod('PAYPAL')
-            setTotal(parsed.total)
+            const finalTotal = Number(parsed.grandTotal || parsed.total || createRes.data.total || 0)
+            setTotal(finalTotal)
+
+            const orderDateStr = new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            })
+            const fullAddress = `${parsed.shippingData?.address1 || ''}${parsed.shippingData?.address2 ? `, ${parsed.shippingData.address2}` : ''}, ${parsed.shippingData?.city || ''}, ${parsed.shippingData?.state || ''} ${parsed.shippingData?.zipCode || ''}, ${parsed.shippingData?.country || 'United States'}`
+
+            const ppReceipt: OrderReceiptData = {
+              date: orderDateStr,
+              orderDate: orderDateStr,
+              orderNumber: confirmedOrderNumber,
+              transactionId: captureRes.data.paymentId || (typeof payPalToken === 'string' ? payPalToken : `PP-${Date.now()}`),
+              userName: `${parsed.shippingData?.firstName || ''} ${parsed.shippingData?.lastName || ''}`.trim() || 'Valued Customer',
+              address: fullAddress,
+              paymentSource: 'PayPal Express',
+              initialCharge: `$${Number(parsed.subtotal || parsed.grandTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              finalCost: `$${finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              totalRefund: '$0.00',
+              refundTrans: 'N/A',
+              shippingCost: parsed.shippingCost ? `$${Number(parsed.shippingCost).toFixed(2)}` : '$0.00 (Free Shipping)',
+              tax: parsed.tax ? `$${Number(parsed.tax).toFixed(2)}` : '$0.00',
+              items: (parsed.items || []).map((i: any) => ({
+                name: i.name || 'High-Performance Vehicle',
+                quantity: i.quantity || 1,
+                price: `$${Number(i.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                total: `$${(Number(i.price || 0) * (i.quantity || 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              }))
+            }
+
+            setReceipt(ppReceipt)
+            localStorage.setItem('latest_order_receipt', JSON.stringify(ppReceipt))
 
             // Auto-login if guest account was registered
             if ((createRes as any).token && (createRes as any).user) {
@@ -117,60 +229,294 @@ const OrderSuccessPage = () => {
     )
   }
 
-  const displayOrderNumber = orderNumber || `ORD-${Math.floor(100000 + Math.random() * 900000)}`
+  const [copied, setCopied] = useState(false)
+  const [showReceiptPreview, setShowReceiptPreview] = useState(true)
+
+  const displayOrderNumber = orderNumber || `MMR-${Math.floor(100000 + Math.random() * 900000)}`
   const formattedTotal = total ? `$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null
 
+  const activeReceipt: OrderReceiptData = receipt || {
+    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    orderDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    orderNumber: displayOrderNumber,
+    transactionId: `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
+    userName: 'Valued Customer',
+    address: 'Express Shipping to Destination on File',
+    paymentSource: paymentMethod === 'STRIPE' ? 'Credit / Debit Card (Stripe)' : paymentMethod === 'PAYPAL' ? 'PayPal Express' : paymentMethod,
+    initialCharge: formattedTotal || '$0.00',
+    finalCost: formattedTotal || '$0.00',
+    totalRefund: '$0.00',
+    refundTrans: 'N/A'
+  }
+
+  // Exact receipt text formatting required by specification
+  const generateReceiptText = (r: OrderReceiptData): string => {
+    return [
+      `Receipt `,
+      ` Order Summary `,
+      `Date: ${r.date}`,
+      `--------------------------------------------------------------------------------  `,
+      `Hello, `,
+      `Thank you for choosing to shop with us. Here's a summary of your order. `,
+      `Order Details `,
+      `********************************************************************************  `,
+      `Order Date     : ${r.orderDate}`,
+      `Order Number   : ${r.orderNumber}`,
+      `Transaction ID : ${r.transactionId}`,
+      `User Name      : ${r.userName}`,
+      `Address        : ${r.address}`,
+      `Payment source : ${r.paymentSource}`,
+      `Initial Charge : ${r.initialCharge}`,
+      `Final Cost     : ${r.finalCost}`,
+      `Total Refund   : ${r.totalRefund || '$0.00'}`,
+      `Refund Trans   : N/A`,
+      `N/A`,
+      ``,
+      `Full details for this order have been reviewed by user`,
+      `Additional Transaction Details:`,
+      `If you've purchased a this item, it means you know the item you purchased and have agreed with our terms and conditions that says payment is non-refundable.`,
+      `Feel free to contact our Customer Service via email (support@midgetdriftcarsandebikes.shop) if you have any questions or concerns. They're available 24/7.`,
+      `Regards,`,
+      `Team`,
+      `https://midgetdriftcarsandebikes.shop/`
+    ].join('\n')
+  }
+
+  const handleDownloadReceipt = () => {
+    const textContent = generateReceiptText(activeReceipt)
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `Receipt-${activeReceipt.orderNumber}.txt`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
+  }
+
+  const handlePrintReceipt = () => {
+    window.print()
+  }
+
+  const handleCopyReceipt = async () => {
+    try {
+      await navigator.clipboard.writeText(generateReceiptText(activeReceipt))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Fallback
+    }
+  }
+
   return (
-    <div className="pt-20 min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600 shadow-inner">
-          <CheckCircle className="w-12 h-12" />
+    <div className="pt-24 pb-20 min-h-screen bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        
+        {/* Order Confirmation Hero Banner (no-print) */}
+        <div className="no-print bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-xl p-6 sm:p-8 text-center transition-colors">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+            <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12" />
+          </div>
+
+          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+            Payment Verified & Settled
+          </span>
+
+          <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-gray-900 dark:text-white mt-3 font-anton">
+            Order Confirmed!
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-neutral-300 max-w-xl mx-auto mt-2 font-medium">
+            Thank you for choosing <span className="text-amber-500 font-bold">Midget Micro Drive & Rides</span>. Your order has been placed and registered for express dispatch from our Texas Headquarters.
+          </p>
+
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 dark:bg-[#1a1d24] rounded-xl p-4 border border-gray-200 dark:border-neutral-800 text-left">
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-500 dark:text-neutral-400">Order Ref</p>
+              <p className="text-xs font-black text-gray-900 dark:text-white font-mono truncate">{displayOrderNumber}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-500 dark:text-neutral-400">Payment</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">
+                {paymentMethod === 'STRIPE' ? 'Stripe Card' : 'PayPal'}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-500 dark:text-neutral-400">Total USD</p>
+              <p className="text-xs font-black text-amber-500 font-anton">{activeReceipt.finalCost}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-500 dark:text-neutral-400">Dispatch</p>
+              <p className="text-xs font-bold text-emerald-500">2-4 Business Days</p>
+            </div>
+          </div>
+
+          {/* Quick Action Buttons */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={handleDownloadReceipt}
+              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider text-xs px-5 py-3 rounded-xl shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              Download Receipt (.txt)
+            </button>
+
+            <button
+              onClick={handlePrintReceipt}
+              className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-xs px-5 py-3 rounded-xl border border-gray-300 dark:border-neutral-700 transition-all cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
+              Print / Save as PDF
+            </button>
+
+            <button
+              onClick={handleCopyReceipt}
+              className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-xs px-4 py-3 rounded-xl border border-gray-300 dark:border-neutral-700 transition-all cursor-pointer"
+            >
+              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-gray-500 dark:text-neutral-400" />}
+              {copied ? 'Copied!' : 'Copy Summary'}
+            </button>
+          </div>
         </div>
 
-        <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Order Confirmed!</h1>
-        <p className="text-gray-600 mb-6">
-          Thank you for shopping with Midget Micro Drive & Rides! Your order has been placed and is being prepared for express dispatch from our Texas Headquarters.
-        </p>
+        {/* Official Printable Receipt Card */}
+        <div
+          id="printable-receipt"
+          className="bg-white dark:bg-[#16181e] border-2 border-gray-300 dark:border-neutral-800 rounded-2xl shadow-2xl p-6 sm:p-10 font-mono text-xs text-gray-900 dark:text-neutral-100 transition-colors"
+        >
+          <div className="flex items-center justify-between border-b border-gray-200 dark:border-neutral-800 pb-4 mb-5">
+            <div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-amber-500 no-print" />
+                <h2 className="text-base sm:text-lg font-black uppercase tracking-wider font-sans text-gray-900 dark:text-white">
+                  Official Purchase Receipt
+                </h2>
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-neutral-400 mt-0.5">
+                Midget Micro Drive & Rides • Order Summary & Verification
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                Settled in Full
+              </span>
+            </div>
+          </div>
 
-        <div className="bg-gray-50 rounded-xl p-5 mb-8 text-left border border-gray-200">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm text-gray-500 font-medium">Order Reference:</span>
-            <span className="text-sm font-bold text-gray-900 font-mono">{displayOrderNumber}</span>
+          {/* Formatted Receipt Block matching exact prompt layout */}
+          <div className="bg-gray-50 dark:bg-[#101217] p-5 rounded-xl border border-gray-200 dark:border-neutral-800 text-[11px] sm:text-xs leading-relaxed space-y-4 whitespace-pre-wrap select-text">
+            <div>
+              <p className="font-bold text-gray-900 dark:text-white">Receipt </p>
+              <p className="font-bold text-gray-900 dark:text-white"> Order Summary </p>
+              <p className="text-gray-700 dark:text-neutral-300">Date: {activeReceipt.date}</p>
+              <p className="text-gray-400 dark:text-neutral-600">--------------------------------------------------------------------------------  </p>
+            </div>
+
+            <div>
+              <p className="text-gray-900 dark:text-white font-medium">Hello, </p>
+              <p className="text-gray-800 dark:text-neutral-200">Thank you for choosing to shop with us. Here's a summary of your order. </p>
+            </div>
+
+            <div>
+              <p className="font-bold text-gray-900 dark:text-white">Order Details </p>
+              <p className="text-gray-400 dark:text-neutral-600">********************************************************************************  </p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">Order Date     :</span>
+                <span className="col-span-8 sm:col-span-9 font-semibold text-gray-900 dark:text-white">{activeReceipt.orderDate}</span>
+              </div>
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">Order Number   :</span>
+                <span className="col-span-8 sm:col-span-9 font-bold text-amber-600 dark:text-amber-400">{activeReceipt.orderNumber}</span>
+              </div>
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">Transaction ID :</span>
+                <span className="col-span-8 sm:col-span-9 text-gray-800 dark:text-neutral-200 font-mono">{activeReceipt.transactionId}</span>
+              </div>
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">User Name      :</span>
+                <span className="col-span-8 sm:col-span-9 font-semibold text-gray-900 dark:text-white">{activeReceipt.userName}</span>
+              </div>
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">Address        :</span>
+                <span className="col-span-8 sm:col-span-9 text-gray-800 dark:text-neutral-200">{activeReceipt.address}</span>
+              </div>
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">Payment source :</span>
+                <span className="col-span-8 sm:col-span-9 font-semibold text-gray-900 dark:text-white">{activeReceipt.paymentSource}</span>
+              </div>
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">Initial Charge :</span>
+                <span className="col-span-8 sm:col-span-9 font-semibold text-gray-900 dark:text-white">{activeReceipt.initialCharge}</span>
+              </div>
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">Final Cost     :</span>
+                <span className="col-span-8 sm:col-span-9 font-bold text-emerald-600 dark:text-emerald-400">{activeReceipt.finalCost}</span>
+              </div>
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">Total Refund   :</span>
+                <span className="col-span-8 sm:col-span-9 text-gray-800 dark:text-neutral-200">{activeReceipt.totalRefund || '$0.00'}</span>
+              </div>
+              <div className="grid grid-cols-12 gap-2">
+                <span className="col-span-4 sm:col-span-3 text-gray-500 dark:text-neutral-400">Refund Trans   :</span>
+                <span className="col-span-8 sm:col-span-9 text-gray-800 dark:text-neutral-200">N/A</span>
+              </div>
+              <div className="text-gray-500 dark:text-neutral-400">
+                N/A
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-gray-200 dark:border-neutral-800 space-y-2 text-gray-600 dark:text-neutral-400 text-[10px] sm:text-[11px]">
+              <p className="font-semibold text-gray-900 dark:text-white">Full details for this order have been reviewed by user</p>
+              <p className="font-semibold text-gray-800 dark:text-neutral-300">Additional Transaction Details:</p>
+              <p>
+                If you've purchased a this item, it means you know the item you purchased and have agreed with our terms and conditions that says payment is non-refundable.
+              </p>
+              <p>
+                Feel free to contact our Customer Service via email (<span className="text-amber-500 font-semibold underline">support@midgetdriftcarsandebikes.shop</span>) if you have any questions or concerns. They're available 24/7.
+              </p>
+              <p className="pt-1">Regards,<br />Team<br /><a href="https://midgetdriftcarsandebikes.shop/" target="_blank" rel="noreferrer" className="text-amber-500 font-semibold hover:underline">https://midgetdriftcarsandebikes.shop/</a></p>
+            </div>
           </div>
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm text-gray-500 font-medium">Payment Method:</span>
-            <span className="text-sm font-semibold text-gray-800">
-              {paymentMethod === 'STRIPE' ? 'Credit / Debit Card' : paymentMethod === 'PAYPAL' ? 'PayPal' : paymentMethod}
-            </span>
-          </div>
-          {formattedTotal && (
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-sm text-gray-500 font-medium">Total Amount:</span>
-              <span className="text-sm font-bold text-primary-600">{formattedTotal}</span>
+
+          {/* Line Items Breakdown (Optional extra detail in print view) */}
+          {activeReceipt.items && activeReceipt.items.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-gray-200 dark:border-neutral-800">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-neutral-300 mb-2">
+                Purchased Units:
+              </h3>
+              <div className="space-y-1.5">
+                {activeReceipt.items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-[11px] text-gray-700 dark:text-neutral-300">
+                    <span>{item.name} × {item.quantity}</span>
+                    <span className="font-bold text-gray-900 dark:text-white font-mono">{item.total}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500 font-medium">Estimated Delivery:</span>
-            <span className="text-sm font-medium text-gray-700">2 - 4 Business Days</span>
-          </div>
         </div>
 
-        <div className="space-y-3">
+        {/* Footer Navigation (no-print) */}
+        <div className="no-print flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-200 dark:border-neutral-800">
           <Link
             to="/"
-            className="w-full flex items-center justify-center px-6 py-3.5 border border-transparent text-base font-semibold rounded-xl text-white bg-primary-600 hover:bg-primary-700 shadow-md transition duration-200"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider text-xs rounded-xl shadow-lg shadow-amber-500/20 transition-all"
           >
-            <Home className="w-5 h-5 mr-2" />
+            <Home className="w-4 h-4" />
             Continue Shopping
           </Link>
           <Link
             to="/cart"
-            className="w-full flex items-center justify-center px-6 py-3 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition duration-200"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white dark:bg-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-700 text-gray-800 dark:text-white font-bold text-xs rounded-xl border border-gray-300 dark:border-neutral-700 transition-all"
           >
-            <Package className="w-4 h-4 mr-2 text-gray-500" />
+            <Package className="w-4 h-4 text-gray-500" />
             View Cart
           </Link>
         </div>
+
       </div>
     </div>
   )

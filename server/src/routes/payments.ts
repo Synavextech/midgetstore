@@ -159,6 +159,9 @@ router.post('/paypal/create-order', async (req, res) => {
     const { token, baseUrl } = await getPayPalAccessToken()
     const formattedAmount = Number(amount).toFixed(2)
 
+    const origin = (req.headers.origin as string) || (req.headers.referer as string) || 'https://midgetdriftcarsandebikes.shop'
+    const cleanOrigin = origin.replace(/\/+$/, '')
+
     const orderRes = await fetch(`${baseUrl}/v2/checkout/orders`, {
       method: 'POST',
       headers: {
@@ -180,7 +183,9 @@ router.post('/paypal/create-order', async (req, res) => {
         application_context: {
           brand_name: 'Midget Micro Drive & Rides',
           shipping_preference: 'NO_SHIPPING',
-          user_action: 'PAY_NOW'
+          user_action: 'PAY_NOW',
+          return_url: `${cleanOrigin}/order-success`,
+          cancel_url: `${cleanOrigin}/checkout`
         }
       })
     })

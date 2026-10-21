@@ -166,14 +166,44 @@ const CheckoutForm: React.FC = () => {
         const approveUrl = ppRes.data.approveUrl
 
         if (approveUrl) {
+          // Prepare complete order payload for database persistence upon capture
+          const orderPayload = {
+            items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
+            paymentMethod: 'PAYPAL',
+            shippingAddress: {
+              firstName: shippingData.firstName,
+              lastName: shippingData.lastName,
+              email: shippingData.email,
+              phone: shippingData.phone,
+              address1: shippingData.address1,
+              address2: shippingData.address2,
+              city: shippingData.city,
+              state: shippingData.state,
+              postalCode: shippingData.zipCode,
+              country: shippingData.country
+            },
+            createAccount,
+            password: createAccount ? accountPassword : undefined,
+            notes: `US Texas Depot Express Delivery to ${shippingData.city}, ${shippingData.state} (${shippingData.zipCode}). Paid & Settled via PAYPAL (${ppOrderId})`
+          }
+
           // Store pending order details so it can be completed after returning from PayPal
           localStorage.setItem('pending_paypal_order', JSON.stringify({
             ppOrderId,
             grandTotal,
+            subtotal: totalPrice,
+            shippingCost,
+            tax: estimatedTax,
             shippingData,
             createAccount,
             accountPassword,
-            items: items.map(i => ({ productId: i.productId, quantity: i.quantity }))
+            items: items.map(i => ({
+              productId: i.productId,
+              name: i.product.name,
+              quantity: i.quantity,
+              price: i.product.price
+            })),
+            orderData: orderPayload
           }))
           // Redirect to PayPal's secure approval page
           window.location.href = approveUrl
@@ -219,6 +249,39 @@ const CheckoutForm: React.FC = () => {
 
       const orderNumber = orderRes.data?.orderNumber || `MMR-${Math.floor(100000 + Math.random() * 900000)}`
 
+      const formattedOrderDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+
+      const fullAddressString = `${shippingData.address1}${shippingData.address2 ? `, ${shippingData.address2}` : ''}, ${shippingData.city}, ${shippingData.state} ${shippingData.zipCode}, ${shippingData.country}`
+
+      const receiptData = {
+        date: formattedOrderDate,
+        orderDate: formattedOrderDate,
+        orderNumber,
+        transactionId: paymentRecordId || `TXN-${Date.now()}`,
+        userName: `${shippingData.firstName} ${shippingData.lastName}`.trim() || 'Valued Customer',
+        address: fullAddressString,
+        paymentSource: paymentMethod === 'STRIPE' ? 'Credit / Debit Card (Stripe)' : 'PayPal Express',
+        initialCharge: `$${totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        finalCost: `$${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        totalRefund: '$0.00',
+        refundTrans: 'N/A',
+        shippingCost: shippingCost === 0 ? '$0.00 (Free Shipping)' : `$${shippingCost.toFixed(2)}`,
+        tax: `$${estimatedTax.toFixed(2)}`,
+        items: items.map(i => ({
+          name: i.product.name,
+          quantity: i.quantity,
+          price: `$${i.product.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          total: `$${(i.quantity * i.product.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        }))
+      }
+
+      // Persist latest order receipt in localStorage so customer refresh preserves full details
+      localStorage.setItem('latest_order_receipt', JSON.stringify(receiptData))
+
       // Clear cart
       clearCart()
 
@@ -228,7 +291,8 @@ const CheckoutForm: React.FC = () => {
           orderNumber,
           total: grandTotal,
           paymentMethod,
-          shippingAddress: `${shippingData.address1}, ${shippingData.city}, ${shippingData.state} ${shippingData.zipCode}`
+          shippingAddress: fullAddressString,
+          receiptData
         }
       })
     } catch (error: any) {
