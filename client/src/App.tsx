@@ -13,6 +13,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import OrderSuccessPage from './pages/OrderSuccessPage'
 import ProtectedRoute from './components/ProtectedRoute'
+import WhatsAppButton from './components/WhatsAppButton'
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
                   }
                 />
               </Routes>
+              <WhatsAppButton />
             </div>
           </Router>
         </CartProvider>

@@ -496,15 +496,78 @@ export const HomePage: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                The premier American supplier of high-torque electric drift trikes, dirt bikes, racing go karts, and performance micro rides. Engineered for thrill-seekers.
-              </p>
               <div className="space-y-1.5 pt-1 text-xs text-gray-600 dark:text-gray-400">
                 <p className="text-gray-900 dark:text-white font-bold">🏢 Head Office:</p>
                 <p>1000 Micro Drive Way, Suite 400</p>
                 <p>Austin, TX 78701, United States</p>
                 <p className="text-amber-600 dark:text-amber-400 font-semibold pt-1">📞 +1 (512) 890-3450</p>
                 <p className="text-amber-600 dark:text-amber-400 font-semibold">✉️ support@midgetmicrodrivesandrides.shop</p>
+              </div>
+
+              {/* Social Media Links */}
+              <div className="pt-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2.5">
+                  Follow Our Rides
+                </p>
+                <div className="flex items-center gap-2.5">
+                  {/* Instagram */}
+                  <a
+                    href="https://instagram.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Follow on Instagram"
+                    title="Follow on Instagram"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center bg-white dark:bg-[#17171c] border border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:text-pink-500 hover:border-pink-500/50 hover:bg-pink-500/10 hover:scale-105 transition-all shadow-sm"
+                  >
+                    <svg className="w-4 h-4 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+                    </svg>
+                  </a>
+
+                  {/* Facebook */}
+                  <a
+                    href="https://facebook.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Follow on Facebook"
+                    title="Follow on Facebook"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center bg-white dark:bg-[#17171c] border border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:border-blue-500/50 hover:bg-blue-500/10 hover:scale-105 transition-all shadow-sm"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
+                  </a>
+
+                  {/* X (formerly Twitter) */}
+                  <a
+                    href="https://x.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Follow on X"
+                    title="Follow on X"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center bg-white dark:bg-[#17171c] border border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:text-amber-500 dark:hover:text-white hover:border-amber-500/50 hover:bg-amber-500/10 hover:scale-105 transition-all shadow-sm"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                  </a>
+
+                  {/* TikTok */}
+                  <a
+                    href="https://tiktok.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Follow on TikTok"
+                    title="Follow on TikTok"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center bg-white dark:bg-[#17171c] border border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:text-cyan-400 hover:border-cyan-400/50 hover:bg-cyan-400/10 hover:scale-105 transition-all shadow-sm"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-1.01v8.83c0 1.9-.62 3.84-1.89 5.29-1.42 1.63-3.53 2.5-5.63 2.37-2.42-.12-4.68-1.47-5.83-3.6-1.28-2.34-1.13-5.38.38-7.56 1.45-2.12 3.95-3.32 6.47-3.15.11 1.48.05 2.97.05 4.46-.72-.05-1.48-.02-2.16.24-.87.32-1.55 1.05-1.83 1.93-.36 1.13-.12 2.44.64 3.32.74.88 1.93 1.29 3.07 1.11 1.14-.17 2.11-.98 2.52-2.06.24-.62.34-1.3.32-1.97V.02z" />
+                    </svg>
+                  </a>
+                </div>
               </div>
             </div>
 
