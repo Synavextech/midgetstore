@@ -76,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
-              <span className="whitespace-nowrap font-extrabold">HEADQUARTERS & DISPATCH: TEXAS, USA</span>
+              <span className="whitespace-nowrap font-extrabold">HEADQUARTERS & DISPATCH: Nanshan, Shenzhen, Guangdong Province, China</span>
             </span>
           </div>
           {/* Duplicate track for seamless continuous loop */}
@@ -95,7 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
-              <span className="whitespace-nowrap font-extrabold">HEADQUARTERS & DISPATCH: TEXAS, USA</span>
+              <span className="whitespace-nowrap font-extrabold">HEADQUARTERS & DISPATCH: Nanshan, Shenzhen, Guangdong Province, China</span>
             </span>
           </div>
         </div>

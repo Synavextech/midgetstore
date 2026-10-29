@@ -66,7 +66,7 @@ export const AdminDashboard: React.FC = () => {
     isNew: true,
     topSpeed: '60 km/h',
     range: '70 km',
-    deliveryTime: '2-4 business days (US Texas Depot)',
+    deliveryTime: '21 business days (Nanshan, Shenzhen, Guangdong Province, China Warehouse)',
   })
 
   // Order status filter
@@ -228,7 +228,7 @@ export const AdminDashboard: React.FC = () => {
         brand: productForm.brand || 'Midget Micro Drive & Rides',
         images: allImages,
         isNew: productForm.isNew,
-        averageDeliveryTime: productForm.deliveryTime || '2-4 business days (US Texas Depot)',
+        averageDeliveryTime: productForm.deliveryTime || '21-35 business days (Nanshan, Shenzhen, Guangdong Province, China Warehouse)',
         isActive: true,
       }
 
@@ -287,7 +287,7 @@ export const AdminDashboard: React.FC = () => {
       isNew: product.isNew,
       topSpeed: '60 km/h',
       range: '70 km',
-      deliveryTime: product.averageDeliveryTime || '2-4 business days (US Texas Depot)',
+      deliveryTime: product.averageDeliveryTime || '21-35 business days (Nanshan, Shenzhen, Guangdong Province, China Warehouse)',
     })
     setIsProductModalOpen(true)
   }
@@ -309,7 +309,7 @@ export const AdminDashboard: React.FC = () => {
       isNew: true,
       topSpeed: '65 km/h',
       range: '70 km',
-      deliveryTime: '2-4 business days (US Texas Depot)',
+      deliveryTime: '21-35 business days (Nanshan, Shenzhen, Guangdong Province, China Warehouse)',
     })
     setIsProductModalOpen(true)
   }
@@ -350,7 +350,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">
               <span>Midget Micro Drive & Rides</span>
               <span>•</span>
-              <span>Texas HQ Operations</span>
+              <span>Nanshan, Shenzhen, Guangdong Province, China HQ Operations</span>
               {user && (
                 <>
                   <span>•</span>
@@ -393,11 +393,10 @@ export const AdminDashboard: React.FC = () => {
         {/* Action / Notification Banner */}
         {actionMessage && (
           <div
-            className={`mb-6 p-4 rounded-xl text-xs font-bold flex items-center gap-2 ${
-              actionMessage.type === 'success'
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                : 'bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
-            }`}
+            className={`mb-6 p-4 rounded-xl text-xs font-bold flex items-center gap-2 ${actionMessage.type === 'success'
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+              : 'bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
+              }`}
           >
             {actionMessage.type === 'success' ? (
               <CheckCircle className="w-4 h-4 flex-shrink-0" />
@@ -422,11 +421,10 @@ export const AdminDashboard: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 py-4 px-1 text-xs font-black uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${
-                  isActive
-                    ? 'border-amber-500 text-amber-500'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
+                className={`flex items-center gap-2 py-4 px-1 text-xs font-black uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${isActive
+                  ? 'border-amber-500 text-amber-500'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
@@ -487,9 +485,9 @@ export const AdminDashboard: React.FC = () => {
             {/* Quick Actions & Store Config Note */}
             <div className="bg-white dark:bg-[#16181e] p-6 rounded-2xl border border-gray-200 dark:border-neutral-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
               <div>
-                <h3 className="font-anton text-lg uppercase text-gray-900 dark:text-white">Texas Head Office Configuration</h3>
+                <h3 className="font-anton text-lg uppercase text-gray-900 dark:text-white">Nanshan, Shenzhen, Guangdong Province, China Warehouse Configuration</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  HQ: 1000 Micro Drive Way, Suite 400, Austin, TX 78701 • Orders route to Stripe & PayPal Gateways
+                  HQ: 1000 Micro Drive Way, Suite 400, Nanshan, Shenzhen, Guangdong Province, China.
                 </p>
               </div>
               <button
@@ -579,11 +577,10 @@ export const AdminDashboard: React.FC = () => {
 
                         <td className="px-6 py-4">
                           <span
-                            className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${
-                              p.stock > 10
-                                ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                                : 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400'
-                            }`}
+                            className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${p.stock > 10
+                              ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                              : 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400'
+                              }`}
                           >
                             {p.stock} units
                           </span>
@@ -745,22 +742,20 @@ export const AdminDashboard: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                              u.role === 'ADMIN'
-                                ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300'
-                                : 'bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300'
-                            }`}
+                            className={`text-[10px] font-black px-2 py-0.5 rounded-full ${u.role === 'ADMIN'
+                              ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300'
+                              : 'bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300'
+                              }`}
                           >
                             {u.role}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              u.isActive
-                                ? 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300'
-                                : 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300'
-                            }`}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${u.isActive
+                              ? 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300'
+                              : 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300'
+                              }`}
                           >
                             {u.isActive ? 'Active' : 'Disabled'}
                           </span>
@@ -768,11 +763,10 @@ export const AdminDashboard: React.FC = () => {
                         <td className="px-6 py-4 text-right">
                           <button
                             onClick={() => handleToggleUserStatus(u.id, u.isActive)}
-                            className={`text-xs font-bold px-3 py-1 rounded-lg border transition-colors ${
-                              u.isActive
-                                ? 'border-red-200 text-red-600 hover:bg-red-50'
-                                : 'border-green-200 text-green-600 hover:bg-green-50'
-                            }`}
+                            className={`text-xs font-bold px-3 py-1 rounded-lg border transition-colors ${u.isActive
+                              ? 'border-red-200 text-red-600 hover:bg-red-50'
+                              : 'border-green-200 text-green-600 hover:bg-green-50'
+                              }`}
                           >
                             {u.isActive ? 'Deactivate' : 'Activate'}
                           </button>
@@ -848,9 +842,8 @@ export const AdminDashboard: React.FC = () => {
                       {productForm.images.map((imgUrl, idx) => (
                         <div
                           key={idx}
-                          className={`group relative aspect-square rounded-lg overflow-hidden border-2 bg-gray-200 dark:bg-neutral-800 ${
-                            idx === 0 ? 'border-amber-500 shadow-sm' : 'border-gray-300 dark:border-neutral-700'
-                          }`}
+                          className={`group relative aspect-square rounded-lg overflow-hidden border-2 bg-gray-200 dark:bg-neutral-800 ${idx === 0 ? 'border-amber-500 shadow-sm' : 'border-gray-300 dark:border-neutral-700'
+                            }`}
                         >
                           <img
                             src={imgUrl}

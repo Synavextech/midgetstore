@@ -117,7 +117,7 @@ const OrderSuccessPage = () => {
             },
             createAccount: parsed.createAccount,
             password: parsed.accountPassword,
-            notes: `US Texas Depot Express Delivery. Paid & Settled via PAYPAL (${captureRes.data.paymentId})`
+            notes: `Nanshan, Shenzhen, Guangdong Province, China(${captureRes.data.paymentId})`
           }
 
           // 2. Finalize and settle order in database
@@ -312,7 +312,7 @@ const OrderSuccessPage = () => {
   return (
     <div className="pt-24 pb-20 min-h-screen bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        
+
         {/* Order Confirmation Hero Banner (no-print) */}
         <div className="no-print bg-white dark:bg-[#16181e] border border-gray-200 dark:border-neutral-800 rounded-2xl shadow-xl p-6 sm:p-8 text-center transition-colors">
           <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
@@ -327,7 +327,7 @@ const OrderSuccessPage = () => {
             Order Confirmed!
           </h1>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-neutral-300 max-w-xl mx-auto mt-2 font-medium">
-            Thank you for choosing <span className="text-amber-500 font-bold">Midget Micro Drive & Rides</span>. Your order has been placed and registered for express dispatch from our Texas Headquarters.
+            Thank you for choosing <span className="text-amber-500 font-bold">Midget Micro Drive & Rides</span>. Your order has been placed and registered for express dispatch from our Nanshan, Shenzhen, Guangdong Province, China Warehouse.
           </p>
 
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 dark:bg-[#1a1d24] rounded-xl p-4 border border-gray-200 dark:border-neutral-800 text-left">

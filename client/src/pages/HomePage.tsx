@@ -71,28 +71,28 @@ export const HomePage: React.FC = () => {
   const filteredProducts = selectedCategory === 'all'
     ? safeProducts
     : safeProducts.filter(p => {
-        const cat = (p.category || '').toLowerCase()
-        const name = (p.name || '').toLowerCase()
-        const sel = selectedCategory.toLowerCase()
+      const cat = (p.category || '').toLowerCase()
+      const name = (p.name || '').toLowerCase()
+      const sel = selectedCategory.toLowerCase()
 
-        if (sel === 'microcars') {
-          return cat.includes('microcar') || cat.includes('car') || cat.includes('jeep') ||
-                 name.includes('microcar') || name.includes('car') || name.includes('jeep') || name.includes('willys')
-        }
-        if (sel === 'go karts') {
-          return cat.includes('kart') || cat.includes('buggy') ||
-                 name.includes('kart') || name.includes('buggy')
-        }
-        if (sel === 'trikes') {
-          return cat.includes('trike') || (cat.includes('drift') && !cat.includes('kart')) ||
-                 name.includes('trike')
-        }
-        if (sel === 'dirtbikes' || sel === 'dirt bikes') {
-          return cat.includes('dirt') || cat.includes('bike') || cat.includes('enduro') || cat.includes('motorcycle') ||
-                 name.includes('dirt') || name.includes('bike') || name.includes('enduro') || name.includes('motorcycle')
-        }
-        return cat.includes(sel) || name.includes(sel)
-      })
+      if (sel === 'microcars') {
+        return cat.includes('microcar') || cat.includes('car') || cat.includes('jeep') ||
+          name.includes('microcar') || name.includes('car') || name.includes('jeep') || name.includes('willys')
+      }
+      if (sel === 'go karts') {
+        return cat.includes('kart') || cat.includes('buggy') ||
+          name.includes('kart') || name.includes('buggy')
+      }
+      if (sel === 'trikes') {
+        return cat.includes('trike') || (cat.includes('drift') && !cat.includes('kart')) ||
+          name.includes('trike')
+      }
+      if (sel === 'dirtbikes' || sel === 'dirt bikes') {
+        return cat.includes('dirt') || cat.includes('bike') || cat.includes('enduro') || cat.includes('motorcycle') ||
+          name.includes('dirt') || name.includes('bike') || name.includes('enduro') || name.includes('motorcycle')
+      }
+      return cat.includes(sel) || name.includes(sel)
+    })
 
   const handleQuantityChange = (productId: string, delta: number) => {
     setQuantities(prev => {
@@ -197,7 +197,7 @@ export const HomePage: React.FC = () => {
           <div className="max-w-4xl space-y-5 md:space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase tracking-widest backdrop-blur-md">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              US Texas Head Office Depot
+              Nanshan, Shenzhen, Guangdong Province, China
             </div>
 
             <h1 className="font-anton text-5xl sm:text-7xl lg:text-8xl text-white leading-none tracking-tight uppercase">
@@ -206,9 +206,8 @@ export const HomePage: React.FC = () => {
 
             <p className="text-base sm:text-lg text-gray-300 max-w-2xl border-l-4 border-amber-500 pl-6 leading-relaxed font-medium">
               <span className="font-extrabold text-amber-400 block text-sm sm:text-base uppercase tracking-wider mb-1">
-                small rides, big excitement
+                Small Rides, Big Excitement
               </span>
-              Precision torque meets lateral freedom. Dominate every asphalt curve, outdoor track, and dirt trail with the nation's premier selection of electric drift trikes, dirt bikes, and high-speed go karts.
             </p>
 
             <div className="flex flex-wrap gap-3 pt-2">
@@ -245,7 +244,7 @@ export const HomePage: React.FC = () => {
         </div>
       </header>
 
-      {/* Trust & Guarantee Strip — USD & Texas Office */}
+      {/* Trust & Guarantee */}
       <section className="bg-gray-100/80 dark:bg-[#0f0f12] border-b border-gray-200 dark:border-white/10 py-5 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
@@ -255,7 +254,7 @@ export const HomePage: React.FC = () => {
               </div>
               <div>
                 <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">US Express Shipping</h4>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">Texas Depot fast dispatch</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">China Depot fast dispatch</p>
               </div>
             </div>
 
@@ -265,7 +264,7 @@ export const HomePage: React.FC = () => {
               </div>
               <div>
                 <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">Credit & Debit Card</h4>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">Encrypted 256-bit SSL</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">Data Encrypted with 256-bit SSL</p>
               </div>
             </div>
 
@@ -275,7 +274,7 @@ export const HomePage: React.FC = () => {
               </div>
               <div>
                 <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">PayPal Protection</h4>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">Buyer protection policy</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">One time payment for full coverage</p>
               </div>
             </div>
 
@@ -285,7 +284,7 @@ export const HomePage: React.FC = () => {
               </div>
               <div>
                 <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">Factory Verified</h4>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">100% Authentic vehicles</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">100% Authentic Shipping Company</p>
               </div>
             </div>
           </div>
@@ -312,11 +311,10 @@ export const HomePage: React.FC = () => {
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
-                    selectedCategory === cat.id
-                      ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
-                      : 'bg-white dark:bg-[#17171c] text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-white/10 hover:border-amber-500/40 shadow-sm'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${selectedCategory === cat.id
+                    ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                    : 'bg-white dark:bg-[#17171c] text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-white/10 hover:border-amber-500/40 shadow-sm'
+                    }`}
                 >
                   {cat.label}
                 </button>
@@ -449,11 +447,10 @@ export const HomePage: React.FC = () => {
                         <button
                           type="button"
                           onClick={(e) => handleAddToCart(product, e)}
-                          className={`flex-1 py-2 sm:py-2.5 font-extrabold text-[10px] sm:text-xs uppercase tracking-widest rounded transition-all active:scale-95 flex items-center justify-center gap-1.5 ${
-                            isAdded
-                              ? 'bg-green-600 text-white'
-                              : 'bg-gray-900 text-white dark:bg-white dark:text-black hover:bg-amber-500 hover:text-black dark:hover:bg-amber-500 dark:hover:text-black'
-                          }`}
+                          className={`flex-1 py-2 sm:py-2.5 font-extrabold text-[10px] sm:text-xs uppercase tracking-widest rounded transition-all active:scale-95 flex items-center justify-center gap-1.5 ${isAdded
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-900 text-white dark:bg-white dark:text-black hover:bg-amber-500 hover:text-black dark:hover:bg-amber-500 dark:hover:text-black'
+                            }`}
                         >
                           {isAdded ? (
                             <>
@@ -477,7 +474,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Footer Matching Midget Micro Drive & Rides - Texas Head Office */}
+      {/* Footer Matching Midget Micro Drive & Rides*/}
       <footer className="bg-gray-100 dark:bg-[#0b0b0e] border-t border-gray-200 dark:border-white/10 text-gray-900 dark:text-white pt-16 pb-28 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-gray-200 dark:border-white/10">
@@ -498,8 +495,9 @@ export const HomePage: React.FC = () => {
               </div>
               <div className="space-y-1.5 pt-1 text-xs text-gray-600 dark:text-gray-400">
                 <p className="text-gray-900 dark:text-white font-bold">🏢 Head Office:</p>
-                <p>1000 Micro Drive Way, Suite 400</p>
-                <p>Austin, TX 78701, United States</p>
+
+                <p>Building 6, Lecong Industrial Park</p>
+                <p>Shunde District, Foshan, Guangdong 503315, China</p>
                 <p className="text-amber-600 dark:text-amber-400 font-semibold pt-1">📞 +1 (512) 890-3450</p>
                 <p className="text-amber-600 dark:text-amber-400 font-semibold">✉️ support@midgetmicrodrivesandrides.shop</p>
               </div>
@@ -587,10 +585,10 @@ export const HomePage: React.FC = () => {
             <div>
               <p className="font-bold text-xs text-amber-500 uppercase tracking-widest mb-4">Support & Care</p>
               <ul className="space-y-2.5 text-xs text-gray-600 dark:text-gray-400 font-medium">
-                <li><a href="#shipping" className="hover:text-amber-500 dark:hover:text-white transition-colors">Texas Depot Express Dispatch</a></li>
+                <li><a href="#shipping" className="hover:text-amber-500 dark:hover:text-white transition-colors">China Depot Express Dispatch</a></li>
                 <li><a href="#payments" className="hover:text-amber-500 dark:hover:text-white transition-colors">Card & PayPal Protection</a></li>
                 <li><a href="#warranty" className="hover:text-amber-500 dark:hover:text-white transition-colors">Factory Warranty & Guarantees</a></li>
-                <li><Link to="/login" className="hover:text-amber-500 dark:hover:text-white transition-colors">Customer & Admin Portal</Link></li>
+                <li><Link to="/login" className="hover:text-amber-500 dark:hover:text-white transition-colors">Customer Portal</Link></li>
               </ul>
             </div>
 
@@ -621,7 +619,7 @@ export const HomePage: React.FC = () => {
             <div className="flex gap-6">
               <a href="#privacy" className="hover:text-amber-500 dark:hover:text-gray-300">Privacy</a>
               <a href="#terms" className="hover:text-amber-500 dark:hover:text-gray-300">Terms</a>
-              <a href="#contact" className="hover:text-amber-500 dark:hover:text-gray-300">Texas HQ Contact</a>
+              <a href="#contact" className="hover:text-amber-500 dark:hover:text-gray-300">China HQ Contact</a>
             </div>
           </div>
         </div>
@@ -632,7 +630,7 @@ export const HomePage: React.FC = () => {
         <div className="fixed bottom-0 inset-x-0 bg-white/95 dark:bg-[#131316]/95 backdrop-blur-md border-t border-gray-200 dark:border-white/10 p-4 shadow-2xl z-40 text-gray-900 dark:text-white transition-colors">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div 
+              <div
                 onClick={() => setIsCartDrawerOpen(true)}
                 className="w-12 h-12 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl flex items-center justify-center text-amber-500 relative cursor-pointer hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
               >

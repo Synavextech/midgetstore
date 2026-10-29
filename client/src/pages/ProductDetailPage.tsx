@@ -120,7 +120,7 @@ SKU: ${currentProduct.sku}
 Price: $${currentProduct.price}
 Selected Color: ${selectedVariant}
 Warranty: 1 Year Manufacturer Warranty Included
-Dispatch: Texas Depot (Fast Delivery 2-4 Days)
+Dispatch: Nanshan, Shenzhen, Guangdong Province, China Warehouse (Fast Delivery 21 -35 Days)
 
 OVERVIEW:
 ${currentProduct.description || 'Precision engineered micro ride built for performance, reliability, and extreme adventure.'}
@@ -230,7 +230,7 @@ Customer Support: support@midgetmicrodrivesandrides.shop
   return (
     <div className="pt-20 pb-20 min-h-screen bg-gray-50 dark:bg-[#0e1014] text-gray-900 dark:text-white transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        
+
         {/* Top Back Navigation Bar */}
         <div className="flex items-center justify-between mb-6">
           <button
@@ -252,10 +252,10 @@ Customer Support: support@midgetmicrodrivesandrides.shop
 
         {/* Main Product Showcase Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-          
+
           {/* LEFT COLUMN: Media Showcase */}
           <div className="lg:col-span-6 space-y-4">
-            
+
             {/* Primary Main Image / Video Viewport */}
             <div
               onClick={() => openLightbox(selectedImageIndex)}
@@ -302,11 +302,10 @@ Customer Support: support@midgetmicrodrivesandrides.shop
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
-                    className={`relative aspect-square bg-white dark:bg-[#15171d] rounded-lg border-2 overflow-hidden transition-all ${
-                      selectedImageIndex === index
-                        ? 'border-lime-500 dark:border-lime-400 ring-2 ring-lime-500/20 shadow-md scale-[1.02]'
-                        : 'border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30 opacity-75 hover:opacity-100'
-                    }`}
+                    className={`relative aspect-square bg-white dark:bg-[#15171d] rounded-lg border-2 overflow-hidden transition-all ${selectedImageIndex === index
+                      ? 'border-lime-500 dark:border-lime-400 ring-2 ring-lime-500/20 shadow-md scale-[1.02]'
+                      : 'border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30 opacity-75 hover:opacity-100'
+                      }`}
                   >
                     {isVideoMedia(media) ? (
                       <div className="w-full h-full flex items-center justify-center bg-neutral-900 text-amber-500">
@@ -333,7 +332,7 @@ Customer Support: support@midgetmicrodrivesandrides.shop
 
           {/* RIGHT COLUMN: Product Information & Action Panel */}
           <div className="lg:col-span-6 space-y-6">
-            
+
             {/* Tagline with vertical accent bar */}
             <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">
               <span className="w-1 h-5 bg-lime-500 dark:bg-lime-400 rounded-full inline-block flex-shrink-0"></span>
@@ -398,11 +397,10 @@ Customer Support: support@midgetmicrodrivesandrides.shop
                   <button
                     key={col}
                     onClick={() => setSelectedVariant(col)}
-                    className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider border-2 transition-all ${
-                      selectedVariant.toLowerCase() === col.toLowerCase()
-                        ? 'bg-neutral-900 text-white border-lime-500 dark:border-lime-400 shadow-md ring-1 ring-lime-400/30'
-                        : 'bg-white dark:bg-[#1a1d24] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'
-                    }`}
+                    className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider border-2 transition-all ${selectedVariant.toLowerCase() === col.toLowerCase()
+                      ? 'bg-neutral-900 text-white border-lime-500 dark:border-lime-400 shadow-md ring-1 ring-lime-400/30'
+                      : 'bg-white dark:bg-[#1a1d24] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'
+                      }`}
                   >
                     {col}
                   </button>
@@ -458,11 +456,10 @@ Customer Support: support@midgetmicrodrivesandrides.shop
               {/* SAVE / WISHLIST button */}
               <button
                 onClick={() => setIsSaved(!isSaved)}
-                className={`px-5 py-4 rounded-xl border font-black uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 transition-all ${
-                  isSaved
-                    ? 'bg-red-500/10 border-red-500 text-red-500 shadow-md'
-                    : 'bg-white dark:bg-[#16181e] border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-300 hover:border-red-400 hover:text-red-400'
-                }`}
+                className={`px-5 py-4 rounded-xl border font-black uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 transition-all ${isSaved
+                  ? 'bg-red-500/10 border-red-500 text-red-500 shadow-md'
+                  : 'bg-white dark:bg-[#16181e] border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-300 hover:border-red-400 hover:text-red-400'
+                  }`}
                 title="Save to favorites"
               >
                 <Heart className={`w-4 h-4 ${isSaved ? 'fill-red-500 text-red-500' : ''}`} />
@@ -545,7 +542,7 @@ Customer Support: support@midgetmicrodrivesandrides.shop
               </div>
               <div className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                <span>US Texas Depot Express Dispatch</span>
+                <span>Nanshan, Shenzhen, Guangdong Province, China Warehouse Express Dispatch</span>
               </div>
             </div>
 
@@ -632,11 +629,10 @@ Customer Support: support@midgetmicrodrivesandrides.shop
                   <button
                     key={idx}
                     onClick={() => setLightboxIndex(idx)}
-                    className={`relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                      lightboxIndex === idx
-                        ? 'border-lime-500 ring-2 ring-lime-500 scale-105'
-                        : 'border-white/20 opacity-60 hover:opacity-100 hover:border-lime-500/50'
-                    }`}
+                    className={`relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all ${lightboxIndex === idx
+                      ? 'border-lime-500 ring-2 ring-lime-500 scale-105'
+                      : 'border-white/20 opacity-60 hover:opacity-100 hover:border-lime-500/50'
+                      }`}
                   >
                     {isVideoMedia(thumb) ? (
                       <div className="w-full h-full flex items-center justify-center bg-neutral-900 text-amber-500">

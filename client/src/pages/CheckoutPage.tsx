@@ -184,7 +184,7 @@ const CheckoutForm: React.FC = () => {
             },
             createAccount,
             password: createAccount ? accountPassword : undefined,
-            notes: `US Texas Depot Express Delivery to ${shippingData.city}, ${shippingData.state} (${shippingData.zipCode}). Paid & Settled via PAYPAL (${ppOrderId})`
+            notes: `Nanshan, Shenzhen, Guangdong Province, China Warehouse Express Delivery to ${shippingData.city}, ${shippingData.state} (${shippingData.zipCode}). Paid & Settled via PAYPAL (${ppOrderId})`
           }
 
           // Store pending order details so it can be completed after returning from PayPal
@@ -239,7 +239,7 @@ const CheckoutForm: React.FC = () => {
         },
         createAccount,
         password: createAccount ? accountPassword : undefined,
-        notes: `US Texas Depot Express Delivery to ${shippingData.city}, ${shippingData.state} (${shippingData.zipCode}). Paid & Settled via ${paymentMethod} (${paymentRecordId})`
+        notes: `Nanshan, Shenzhen, Guangdong Province, China Warehouse Express Delivery to ${shippingData.city}, ${shippingData.state} (${shippingData.zipCode}). Paid & Settled via ${paymentMethod} (${paymentRecordId})`
       } as any)
 
       // Auto-authenticate customer if account was established
@@ -350,9 +350,6 @@ const CheckoutForm: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-white mt-2 font-anton">
             Express Order Finalization
           </h1>
-          <p className="text-xs text-gray-500 dark:text-neutral-400 font-bold mt-1">
-            Production-grade SSL 256-Bit payment gateway with US Texas Depot priority dispatch.
-          </p>
         </div>
 
         {errorMessage && (
@@ -510,7 +507,7 @@ const CheckoutForm: React.FC = () => {
                     onChange={handleInputChange}
                     className={inputClasses}
                   >
-                    <option value="United States">United States (Domestic Texas Warehouse)</option>
+                    <option value="United States">United States</option>
                     <option value="Canada">Canada</option>
                     <option value="United Kingdom">United Kingdom</option>
                     <option value="Australia">Australia</option>
@@ -571,11 +568,10 @@ const CheckoutForm: React.FC = () => {
               <div className="space-y-4">
                 {/* Option 1: Credit / Debit Card Checkout via Real Stripe Elements */}
                 <label
-                  className={`block p-4 border rounded-xl cursor-pointer transition-all ${
-                    paymentMethod === 'STRIPE'
-                      ? 'border-amber-500 bg-amber-50/40 dark:bg-amber-500/10 shadow-sm'
-                      : 'border-gray-300 dark:border-neutral-700 bg-gray-50/50 dark:bg-[#1a1d24] hover:border-gray-400 dark:hover:border-neutral-600'
-                  }`}
+                  className={`block p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === 'STRIPE'
+                    ? 'border-amber-500 bg-amber-50/40 dark:bg-amber-500/10 shadow-sm'
+                    : 'border-gray-300 dark:border-neutral-700 bg-gray-50/50 dark:bg-[#1a1d24] hover:border-gray-400 dark:hover:border-neutral-600'
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
@@ -610,7 +606,7 @@ const CheckoutForm: React.FC = () => {
                           </span>
                           <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
                             <Lock className="w-3 h-3" />
-                            <span>Stripe TLS 256-Bit</span>
+                            <span>Secure TLS 256-Bit</span>
                           </div>
                         </div>
                         <CardElement
@@ -639,11 +635,10 @@ const CheckoutForm: React.FC = () => {
 
                 {/* Option 2: PayPal Express Checkout */}
                 <label
-                  className={`block p-4 border rounded-xl cursor-pointer transition-all ${
-                    paymentMethod === 'PAYPAL'
-                      ? 'border-amber-500 bg-amber-50/40 dark:bg-amber-500/10 shadow-sm'
-                      : 'border-gray-300 dark:border-neutral-700 bg-gray-50/50 dark:bg-[#1a1d24] hover:border-gray-400 dark:hover:border-neutral-600'
-                  }`}
+                  className={`block p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === 'PAYPAL'
+                    ? 'border-amber-500 bg-amber-50/40 dark:bg-amber-500/10 shadow-sm'
+                    : 'border-gray-300 dark:border-neutral-700 bg-gray-50/50 dark:bg-[#1a1d24] hover:border-gray-400 dark:hover:border-neutral-600'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -667,7 +662,7 @@ const CheckoutForm: React.FC = () => {
                       </div>
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
-                      Buyer Protection
+                      Fast One Tap Checkout
                     </span>
                   </div>
 
@@ -736,7 +731,7 @@ const CheckoutForm: React.FC = () => {
                   <span className="font-bold text-gray-900 dark:text-white">{formatPrice(totalPrice)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-neutral-400 font-medium">
-                  <span>Texas Depot Express Shipping</span>
+                  <span>China Warehouse Express Shipping</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400">
                     {shippingCost === 0 ? 'FREE (Over $500)' : formatPrice(shippingCost)}
                   </span>
@@ -778,8 +773,8 @@ const CheckoutForm: React.FC = () => {
               </button>
 
               <div className="mt-4 p-3 bg-gray-50 dark:bg-[#1a1d24] rounded-xl border border-gray-200 dark:border-neutral-800 text-[10px] text-gray-500 dark:text-gray-400 space-y-1">
-                <p className="font-bold text-gray-700 dark:text-gray-300">🇺🇸 Texas Head Office Dispatch</p>
-                <p>1000 Micro Drive Way, Suite 400, Austin, TX 78701</p>
+                <p className="font-bold text-gray-700 dark:text-gray-300"> China Warehouse Dispatch</p>
+                <p>1189 Fenghuang Road, Daliang, Shunde District, Foshan, Guangdong 528315, China</p>
                 <p>Orders are backed by 30-day ride warranty & money back guarantee.</p>
               </div>
             </div>
