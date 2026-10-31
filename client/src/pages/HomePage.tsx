@@ -498,7 +498,7 @@ export const HomePage: React.FC = () => {
 
                 <p>Building 6, Lecong Industrial Park</p>
                 <p>Shunde District, Foshan, Guangdong 503315, China</p>
-                <p className="text-amber-600 dark:text-amber-400 font-semibold pt-1">📞 +1 (512) 890-3450</p>
+                <p className="text-amber-600 dark:text-amber-400 font-semibold pt-1">📞 +1 (909) 308-8313</p>
                 <p className="text-amber-600 dark:text-amber-400 font-semibold">✉️ support@midgetmicrodrivesandrides.shop</p>
               </div>
 
