@@ -12,11 +12,17 @@ import {
   AlertTriangle,
   X,
   RefreshCw,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Download,
+  FileText,
+  Printer,
+  Copy,
+  Check
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { adminApi } from '../services/api'
 import { Product, Order, User } from '../types'
+import { OrderReceiptData } from './OrderSuccessPage'
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth()
@@ -71,6 +77,8 @@ export const AdminDashboard: React.FC = () => {
 
   // Order status filter
   const [orderFilter, setOrderFilter] = useState<string>('ALL')
+  const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<any | null>(null)
+  const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchDashboardStats()
@@ -338,6 +346,135 @@ export const AdminDashboard: React.FC = () => {
       }
     } catch (err: any) {
       notify('error', err.message || 'Failed to toggle user status')
+    }
+  }
+
+  // Build standardized OrderReceiptData from a database Order object
+  const buildOrderReceipt = (ord: any): OrderReceiptData => {
+    const orderDateStr = ord.createdAt
+      ? new Date(ord.createdAt).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        })
+      : new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        })
+
+    const addr = ord.shippingAddress
+    let formattedAddress = 'Express Shipping to Destination on File'
+    if (addr && (addr.address1 || addr.city)) {
+      formattedAddress = `${addr.address1 || ''}${addr.address2 ? `, ${addr.address2}` : ''}, ${addr.city || ''}, ${addr.state || ''} ${addr.zipCode || ''}, ${addr.country || 'United States'}`
+    } else if (ord.notes && ord.notes.includes('Delivery to ')) {
+      const match = ord.notes.match(/Delivery to ([^.]+)/)
+      if (match?.[1]) {
+        formattedAddress = `${match[1]}, United States`
+      }
+    }
+
+    const customerName =
+      (addr && `${addr.firstName || ''} ${addr.lastName || ''}`.trim()) ||
+      (ord.user && `${ord.user.firstName || ''} ${ord.user.lastName || ''}`.trim()) ||
+      ord.user?.email ||
+      'Valued Customer'
+
+    const txnMatch = ord.notes ? ord.notes.match(/\(([^)]+)\)\s*$/) : null
+    const transactionId = ord.paymentId || txnMatch?.[1] || `TXN-${ord.orderNumber || ord.id}`
+
+    const paymentSource =
+      ord.paymentMethod === 'STRIPE'
+        ? 'Credit / Debit Card (Stripe)'
+        : ord.paymentMethod === 'PAYPAL'
+          ? 'PayPal Express'
+          : ord.paymentMethod || 'Credit / Debit Card (Stripe)'
+
+    const initialChargeVal = Number(ord.subtotal || ord.total || 0)
+    const finalCostVal = Number(ord.total || 0)
+    const isRefunded = ord.status === 'REFUNDED' || ord.paymentStatus === 'REFUNDED'
+
+    return {
+      date: orderDateStr,
+      orderDate: orderDateStr,
+      orderNumber: ord.orderNumber || ord.id,
+      transactionId,
+      userName: customerName,
+      address: formattedAddress,
+      paymentSource,
+      initialCharge: formatPrice(initialChargeVal),
+      finalCost: formatPrice(finalCostVal),
+      totalRefund: isRefunded ? formatPrice(finalCostVal) : '$0.00',
+      refundTrans: 'N/A',
+      shippingCost: Number(ord.shipping || 0) === 0 ? '$0.00 (Free Shipping)' : formatPrice(Number(ord.shipping || 0)),
+      tax: formatPrice(Number(ord.tax || 0)),
+      items: Array.isArray(ord.items)
+        ? ord.items.map((item: any) => ({
+            name: item.product?.name || 'High-Performance Vehicle',
+            quantity: item.quantity || 1,
+            price: formatPrice(Number(item.price || 0)),
+            total: formatPrice(Number(item.total || Number(item.price || 0) * (item.quantity || 1)))
+          }))
+        : []
+    }
+  }
+
+  // Exact receipt text formatting matching user purchase receipts
+  const generateReceiptText = (r: OrderReceiptData): string => {
+    return [
+      `Receipt `,
+      ` Order Summary `,
+      `Date: ${r.date}`,
+      `--------------------------------------------------------------------------------  `,
+      `Hello, `,
+      `Thank you for choosing to shop with us. Here's a summary of your order. `,
+      `Order Details `,
+      `********************************************************************************  `,
+      `Order Date     : ${r.orderDate}`,
+      `Order Number   : ${r.orderNumber}`,
+      `Transaction ID : ${r.transactionId}`,
+      `User Name      : ${r.userName}`,
+      `Address        : ${r.address}`,
+      `Payment source : ${r.paymentSource}`,
+      `Initial Charge : ${r.initialCharge}`,
+      `Final Cost     : ${r.finalCost}`,
+      `Total Refund   : ${r.totalRefund || '$0.00'}`,
+      `Refund Trans   : N/A`,
+      `N/A`,
+      ``,
+      `Full details for this order have been reviewed by user`,
+      `Additional Transaction Details:`,
+      `If you've purchased a this item, it means you know the item you purchased and have agreed with our terms and conditions that says payment is non-refundable.`,
+      `Feel free to contact our Customer Service via email (support@midgetdriftcarsandebikes.shop) if you have any questions or concerns. They're available 24/7.`,
+      `Regards,`,
+      `Team`,
+      `https://midgetdriftcarsandebikes.shop/`
+    ].join('\n')
+  }
+
+  const handleDownloadOrderReceipt = (ord: any) => {
+    const receiptData = buildOrderReceipt(ord)
+    const textContent = generateReceiptText(receiptData)
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `Receipt-${receiptData.orderNumber}.txt`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
+    notify('success', `Downloaded receipt for Order #${receiptData.orderNumber}`)
+  }
+
+  const handleCopyOrderReceipt = async (ord: any) => {
+    try {
+      const receiptData = buildOrderReceipt(ord)
+      await navigator.clipboard.writeText(generateReceiptText(receiptData))
+      setCopiedOrderId(ord.id)
+      setTimeout(() => setCopiedOrderId(null), 2000)
+    } catch {
+      notify('error', 'Failed to copy receipt summary')
     }
   }
 
@@ -647,12 +784,13 @@ export const AdminDashboard: React.FC = () => {
                     <th className="px-6 py-3.5">Total Amount</th>
                     <th className="px-6 py-3.5">Method</th>
                     <th className="px-6 py-3.5">Status Update</th>
+                    <th className="px-6 py-3.5 text-right">Purchase Receipt</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                   {ordersList.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                      <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
                         No orders recorded yet.
                       </td>
                     </tr>
@@ -695,6 +833,27 @@ export const AdminDashboard: React.FC = () => {
                             <option value="DELIVERED">DELIVERED</option>
                             <option value="CANCELLED">CANCELLED</option>
                           </select>
+                        </td>
+
+                        <td className="px-6 py-4 text-right">
+                          <div className="inline-flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleDownloadOrderReceipt(ord)}
+                              className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider text-[11px] px-3 py-1.5 rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer"
+                              title="Download Generated Purchase Receipt (.txt)"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Download Receipt</span>
+                            </button>
+                            <button
+                              onClick={() => setSelectedReceiptOrder(ord)}
+                              className="inline-flex items-center gap-1 bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-200 font-bold text-[11px] px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-700 transition-colors cursor-pointer"
+                              title="Preview Receipt Details"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-amber-500" />
+                              <span>View</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1030,6 +1189,95 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Order Receipt Preview & Download Modal */}
+      {selectedReceiptOrder && (() => {
+        const previewReceipt = buildOrderReceipt(selectedReceiptOrder)
+        return (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div
+              className="fixed inset-0 bg-black/75 backdrop-blur-sm no-print"
+              onClick={() => setSelectedReceiptOrder(null)}
+            />
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="relative bg-white dark:bg-[#16181e] text-gray-900 dark:text-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 border border-gray-200 dark:border-neutral-800 font-mono text-xs">
+                <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-neutral-800 mb-4 no-print">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-amber-500" />
+                    <div>
+                      <h3 className="text-base font-black uppercase tracking-wider font-sans text-gray-900 dark:text-white">
+                        Purchase Receipt • #{previewReceipt.orderNumber}
+                      </h3>
+                      <p className="text-[11px] font-sans text-gray-500 dark:text-neutral-400">
+                        Generated customer purchase receipt for order settlement verification
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedReceiptOrder(null)}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Action Bar */}
+                <div className="flex flex-wrap items-center gap-2.5 mb-5 no-print font-sans">
+                  <button
+                    onClick={() => handleDownloadOrderReceipt(selectedReceiptOrder)}
+                    className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Receipt (.txt)</span>
+                  </button>
+
+                  <button
+                    onClick={() => window.print()}
+                    className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-gray-300 dark:border-neutral-700 transition-all cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
+                    <span>Print / Save PDF</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleCopyOrderReceipt(selectedReceiptOrder)}
+                    className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-gray-300 dark:border-neutral-700 transition-all cursor-pointer"
+                  >
+                    {copiedOrderId === selectedReceiptOrder.id ? (
+                      <Check className="w-4 h-4 text-emerald-500" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
+                    )}
+                    <span>{copiedOrderId === selectedReceiptOrder.id ? 'Copied!' : 'Copy Receipt'}</span>
+                  </button>
+                </div>
+
+                {/* Exact Receipt Block */}
+                <div className="bg-gray-50 dark:bg-[#101217] p-5 rounded-xl border border-gray-200 dark:border-neutral-800 text-[11px] sm:text-xs leading-relaxed whitespace-pre-wrap select-text overflow-x-auto max-h-[60vh] overflow-y-auto">
+                  {generateReceiptText(previewReceipt)}
+                </div>
+
+                {/* Line Items Breakdown if available */}
+                {previewReceipt.items && previewReceipt.items.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-neutral-800">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-neutral-400 mb-2 font-sans">
+                      Purchased Items Breakdown:
+                    </h4>
+                    <div className="space-y-1.5">
+                      {previewReceipt.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-xs text-gray-700 dark:text-neutral-300">
+                          <span>{item.name} × {item.quantity}</span>
+                          <span className="font-bold text-gray-900 dark:text-white">{item.total}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

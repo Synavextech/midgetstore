@@ -108,7 +108,8 @@ export const createOrder = async (req: Request, res: Response) => {
           address2: shippingAddressInput.address2,
           city: shippingAddressInput.city,
           state: shippingAddressInput.state,
-          postalCode: shippingAddressInput.postalCode,
+          postalCode: shippingAddressInput.postalCode || shippingAddressInput.zipCode || '',
+          zipCode: shippingAddressInput.zipCode || shippingAddressInput.postalCode || '',
           country: shippingAddressInput.country || 'United States',
           phone: shippingAddressInput.phone,
           isDefault: true

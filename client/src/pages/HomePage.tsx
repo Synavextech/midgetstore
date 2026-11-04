@@ -29,7 +29,7 @@ const CATEGORIES = [
 
 // Safe URL encoder for filenames with spaces and special characters
 const getSafeMediaUrl = (url?: string) => {
-  if (!url) return '/images/hero1.jpeg'
+  if (!url) return '/images/hero.jpg'
   if (url.startsWith('http://') || url.startsWith('https://')) return url
   const parts = url.split('/')
   return parts.map((p, idx) => idx === 0 && p === '' ? '' : encodeURIComponent(decodeURIComponent(p))).join('/')
@@ -511,7 +511,7 @@ export const HomePage: React.FC = () => {
                   {/* Instagram */}
                   <a
                     href="https://instagram.com"
-                    target="_blank"
+                    target="https://www.instagram.com/midgetmicrocars?dlrf=MWZuYTI0N2NoZDl3Zw=="
                     rel="noopener noreferrer"
                     aria-label="Follow on Instagram"
                     title="Follow on Instagram"

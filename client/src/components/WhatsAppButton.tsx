@@ -5,8 +5,8 @@ export const WhatsAppButton: React.FC = () => {
 
   // Retrieve configured phone number from environment variables with fallback
   const rawNumber =
-    (import.meta as any).env?.VITE_WHATSAPP_NUMBER || '+15128903450'
-  
+    (import.meta as any).env?.VITE_WHATSAPP_NUMBER || '+19093088313'
+
   // Clean phone number so wa.me only receives digits
   const cleanNumber = rawNumber.replace(/\D/g, '')
 
@@ -20,11 +20,10 @@ export const WhatsAppButton: React.FC = () => {
     <div className="fixed bottom-6 right-6 z-50 flex items-center group">
       {/* Tooltip badge on hover */}
       <div
-        className={`hidden sm:flex items-center gap-2 mr-3 px-3 py-1.5 rounded-full bg-gray-900/90 dark:bg-black/90 text-white text-xs font-semibold backdrop-blur-md shadow-xl border border-white/10 transition-all duration-200 pointer-events-none select-none ${
-          isHovered
+        className={`hidden sm:flex items-center gap-2 mr-3 px-3 py-1.5 rounded-full bg-gray-900/90 dark:bg-black/90 text-white text-xs font-semibold backdrop-blur-md shadow-xl border border-white/10 transition-all duration-200 pointer-events-none select-none ${isHovered
             ? 'opacity-100 translate-x-0'
             : 'opacity-0 translate-x-2'
-        }`}
+          }`}
       >
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         <span>Chat with Support</span>

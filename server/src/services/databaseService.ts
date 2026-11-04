@@ -118,7 +118,11 @@ export class DatabaseService {
         total: Number(oi.total),
         product: oi.products ? this.mapProduct(oi.products) : undefined
       })) : [],
-      shippingAddress: raw.shipping_address ? this.mapAddress(raw.shipping_address) : undefined,
+      shippingAddress: raw.shipping_address
+        ? this.mapAddress(raw.shipping_address)
+        : raw.addresses
+          ? (Array.isArray(raw.addresses) ? (raw.addresses[0] ? this.mapAddress(raw.addresses[0]) : undefined) : this.mapAddress(raw.addresses))
+          : undefined,
       billingAddress: raw.billing_address ? this.mapAddress(raw.billing_address) : undefined,
       user: raw.users ? this.mapUser(raw.users) : undefined
     }
@@ -608,7 +612,7 @@ export class DatabaseService {
   async findOrders(options?: { userId?: string; status?: string; limit?: number; offset?: number }): Promise<Order[]> {
     let query = this.supabase
       .from('orders')
-      .select('*, order_items(*, products(*)), users(*), addresses!orders_shipping_address_id_fkey(*)')
+      .select('*, order_items(*, products(*)), users(*), shipping_address:addresses!orders_shipping_address_id_fkey(*)')
       .order('created_at', { ascending: false })
 
     if (options?.userId) query = query.eq('user_id', options.userId)
@@ -628,7 +632,7 @@ export class DatabaseService {
   async findOrderById(id: string): Promise<Order | null> {
     const { data, error } = await this.supabase
       .from('orders')
-      .select('*, order_items(*, products(*)), users(*)')
+      .select('*, order_items(*, products(*)), users(*), shipping_address:addresses!orders_shipping_address_id_fkey(*)')
       .eq('id', id)
       .maybeSingle()
 
@@ -692,7 +696,7 @@ export class DatabaseService {
         address2: addressData.address2,
         city: addressData.city,
         state: addressData.state,
-        zip_code: addressData.zipCode,
+        zip_code: addressData.zipCode || addressData.postalCode || '',
         country: addressData.country || 'United States',
         phone: addressData.phone,
         is_default: addressData.isDefault ?? false
