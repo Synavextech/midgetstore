@@ -22,7 +22,11 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { adminApi } from '../services/api'
 import { Product, Order, User } from '../types'
-import { OrderReceiptData } from './OrderSuccessPage'
+import {
+  OrderReceiptData,
+  generateReceiptText,
+  downloadReceiptPdf
+} from '../utils/receiptPdf'
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth()
@@ -79,9 +83,26 @@ export const AdminDashboard: React.FC = () => {
   const [orderFilter, setOrderFilter] = useState<string>('ALL')
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<any | null>(null)
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null)
+  const [notificationsList, setNotificationsList] = useState<any[]>([])
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await adminApi.getNotifications()
+      if (res.success && Array.isArray(res.data)) {
+        setNotificationsList(res.data)
+      }
+    } catch {
+      // Silent fallback
+    }
+  }
 
   useEffect(() => {
     fetchDashboardStats()
+    fetchNotifications()
+    const interval = setInterval(() => {
+      fetchNotifications()
+    }, 15000)
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
@@ -419,52 +440,10 @@ export const AdminDashboard: React.FC = () => {
     }
   }
 
-  // Exact receipt text formatting matching user purchase receipts
-  const generateReceiptText = (r: OrderReceiptData): string => {
-    return [
-      `Receipt `,
-      ` Order Summary `,
-      `Date: ${r.date}`,
-      `--------------------------------------------------------------------------------  `,
-      `Hello, `,
-      `Thank you for choosing to shop with us. Here's a summary of your order. `,
-      `Order Details `,
-      `********************************************************************************  `,
-      `Order Date     : ${r.orderDate}`,
-      `Order Number   : ${r.orderNumber}`,
-      `Transaction ID : ${r.transactionId}`,
-      `User Name      : ${r.userName}`,
-      `Address        : ${r.address}`,
-      `Payment source : ${r.paymentSource}`,
-      `Initial Charge : ${r.initialCharge}`,
-      `Final Cost     : ${r.finalCost}`,
-      `Total Refund   : ${r.totalRefund || '$0.00'}`,
-      `Refund Trans   : N/A`,
-      `N/A`,
-      ``,
-      `Full details for this order have been reviewed by user`,
-      `Additional Transaction Details:`,
-      `If you've purchased a this item, it means you know the item you purchased and have agreed with our terms and conditions that says payment is non-refundable.`,
-      `Feel free to contact our Customer Service via email (support@midgetdriftcarsandebikes.shop) if you have any questions or concerns. They're available 24/7.`,
-      `Regards,`,
-      `Team`,
-      `https://midgetdriftcarsandebikes.shop/`
-    ].join('\n')
-  }
-
   const handleDownloadOrderReceipt = (ord: any) => {
     const receiptData = buildOrderReceipt(ord)
-    const textContent = generateReceiptText(receiptData)
-    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `Receipt-${receiptData.orderNumber}.txt`
-    document.body.appendChild(anchor)
-    anchor.click()
-    document.body.removeChild(anchor)
-    URL.revokeObjectURL(url)
-    notify('success', `Downloaded receipt for Order #${receiptData.orderNumber}`)
+    downloadReceiptPdf(receiptData)
+    notify('success', `Generated & downloaded PDF receipt (Receipt-${receiptData.orderNumber}.pdf)`)
   }
 
   const handleCopyOrderReceipt = async (ord: any) => {
@@ -633,6 +612,87 @@ export const AdminDashboard: React.FC = () => {
               >
                 Manage Fleet Catalog
               </button>
+            </div>
+
+            {/* Real-Time System Activity & Integrated SMTP Notification Feed */}
+            <div className="bg-white dark:bg-[#16181e] rounded-2xl border border-gray-200 dark:border-neutral-800 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <h3 className="font-anton text-lg uppercase text-gray-900 dark:text-white">
+                      Real-Time System Activity & SMTP Mail Stream
+                    </h3>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Live notifications for customer purchases (PDF receipts attached), account registrations, and order updates dispatched to customer and system mail.
+                  </p>
+                </div>
+                <button
+                  onClick={fetchNotifications}
+                  className="text-xs font-bold text-amber-500 hover:text-amber-400 px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10"
+                >
+                  Sync Feed
+                </button>
+              </div>
+
+              <div className="divide-y divide-gray-100 dark:divide-neutral-800 max-h-80 overflow-y-auto">
+                {notificationsList.length === 0 && stats.recentOrders.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-gray-400">
+                    Monitoring live store activity. Purchase notifications and account creation alerts will appear here in real time.
+                  </div>
+                ) : (
+                  <>
+                    {notificationsList.map((act: any) => (
+                      <div key={act.id} className="px-6 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 hover:bg-gray-50/50 dark:hover:bg-[#191b22]">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/15 text-amber-500">
+                              {act.type}
+                            </span>
+                            <p className="text-xs font-bold text-gray-900 dark:text-white">{act.title}</p>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{act.message}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="text-[10px] font-mono text-gray-400 block">
+                            {new Date(act.timestamp).toLocaleTimeString()}
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-500">
+                            {act.emailDispatched || act.systemMailDispatched ? 'SMTP Dispatched' : 'Logged & Queued'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {stats.recentOrders.map((ord: any) => (
+                      <div key={`recent-${ord.id}`} className="px-6 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 hover:bg-gray-50/50 dark:hover:bg-[#191b22]">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-500">
+                              SETTLED ORDER
+                            </span>
+                            <p className="text-xs font-bold text-gray-900 dark:text-white font-mono">
+                              #{ord.orderNumber} • {formatPrice(ord.total)}
+                            </p>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Customer: {ord.user?.email || 'Valued Customer'} • Method: {ord.paymentMethod || 'STRIPE'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleDownloadOrderReceipt(ord)}
+                            className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider text-[10px] px-3 py-1.5 rounded-lg shadow-sm cursor-pointer"
+                          >
+                            <Download className="w-3 h-3" />
+                            <span>Receipt (.pdf)</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -840,10 +900,10 @@ export const AdminDashboard: React.FC = () => {
                             <button
                               onClick={() => handleDownloadOrderReceipt(ord)}
                               className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider text-[11px] px-3 py-1.5 rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer"
-                              title="Download Generated Purchase Receipt (.txt)"
+                              title="Download Generated Purchase Receipt (.pdf)"
                             >
                               <Download className="w-3.5 h-3.5" />
-                              <span>Download Receipt</span>
+                              <span>Download Receipt (.pdf)</span>
                             </button>
                             <button
                               onClick={() => setSelectedReceiptOrder(ord)}
@@ -1228,7 +1288,7 @@ export const AdminDashboard: React.FC = () => {
                     className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl shadow-md shadow-amber-500/20 transition-all cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Download Receipt (.txt)</span>
+                    <span>Download Receipt (.pdf)</span>
                   </button>
 
                   <button
@@ -1236,7 +1296,7 @@ export const AdminDashboard: React.FC = () => {
                     className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-gray-300 dark:border-neutral-700 transition-all cursor-pointer"
                   >
                     <Printer className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
-                    <span>Print / Save PDF</span>
+                    <span>Print Receipt</span>
                   </button>
 
                   <button

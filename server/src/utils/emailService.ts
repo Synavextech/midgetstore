@@ -1,177 +1,458 @@
 import nodemailer from 'nodemailer'
+import dotenv from 'dotenv'
+import { EventEmitter } from 'events'
+import {
+  buildReceiptDataFromOrder,
+  generateReceiptPdfBuffer,
+  generateReceiptText,
+  ServerOrderReceiptData
+} from './receiptPdf.js'
 
-// Email service for sending notifications
+dotenv.config()
+
+export interface SystemActivityEvent {
+  id: string
+  type:
+    | 'ORDER_PURCHASED'
+    | 'USER_REGISTERED'
+    | 'USER_LOGIN'
+    | 'ORDER_STATUS_UPDATED'
+    | 'ORDER_CANCELLED'
+    | 'PRODUCT_UPDATED'
+  title: string
+  message: string
+  userEmail?: string
+  orderNumber?: string
+  amount?: number
+  emailDispatched: boolean
+  systemMailDispatched: boolean
+  timestamp: string
+}
+
 class EmailService {
-  private transporter: nodemailer.Transporter
+  public activityEmitter = new EventEmitter()
+  private recentActivities: SystemActivityEvent[] = []
 
   constructor() {
-    // In a real app, configure with actual SMTP settings
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: parseInt(process.env.SMTP_PORT || '587') === 465,
-      auth: (process.env.SMTP_EMAIL || process.env.SMTP_USER) ? {
-        user: process.env.SMTP_EMAIL || process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD || process.env.SMTP_PASS
-      } : undefined
+    this.activityEmitter.setMaxListeners(100)
+  }
+
+  private getTransporter(): { transporter: nodemailer.Transporter | null; isConfigured: boolean; fromAddress: string; systemEmails: string[] } {
+    const host = process.env.SMTP_HOST || 'smtp.gmail.com'
+    const port = parseInt(process.env.SMTP_PORT || '587', 10)
+    const secure =
+      process.env.SMTP_SECURE === 'true' ||
+      port === 465
+
+    const user = (process.env.SMTP_USER || process.env.SMTP_EMAIL || '').trim()
+    const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || '').trim()
+
+    const fromAddress =
+      process.env.FROM_EMAIL ||
+      (user ? `Midget Micro Drive & Rides <${user}>` : 'Midget Micro Drive & Rides <support@midgetdriftcarsandebikes.shop>')
+
+    const rawSystemEmails = [
+      process.env.SYSTEM_NOTIFICATION_EMAIL,
+      process.env.ADMIN_EMAIL,
+      user,
+      'support@midgetdriftcarsandebikes.shop'
+    ]
+      .filter(Boolean)
+      .join(',')
+      .split(',')
+      .map((e) => e.trim())
+      .filter((e) => e.includes('@'))
+
+    const systemEmails = Array.from(new Set(rawSystemEmails))
+
+    if (!user || !pass) {
+      return {
+        transporter: null,
+        isConfigured: false,
+        fromAddress,
+        systemEmails
+      }
+    }
+
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     })
+
+    return {
+      transporter,
+      isConfigured: true,
+      fromAddress,
+      systemEmails
+    }
   }
 
-  // Send order confirmation email
+  public recordActivity(event: Omit<SystemActivityEvent, 'id' | 'timestamp'>): SystemActivityEvent {
+    const fullEvent: SystemActivityEvent = {
+      ...event,
+      id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      timestamp: new Date().toISOString()
+    }
+    this.recentActivities.unshift(fullEvent)
+    if (this.recentActivities.length > 100) {
+      this.recentActivities = this.recentActivities.slice(0, 100)
+    }
+    this.activityEmitter.emit('activity', fullEvent)
+    return fullEvent
+  }
+
+  public getRecentActivities(limit: number = 25): SystemActivityEvent[] {
+    return this.recentActivities.slice(0, limit)
+  }
+
+  private async dispatchMail(mailOptions: nodemailer.SendMailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const { transporter, isConfigured, fromAddress } = this.getTransporter()
+    const finalOptions: nodemailer.SendMailOptions = {
+      from: fromAddress,
+      ...mailOptions
+    }
+
+    if (!isConfigured || !transporter) {
+      console.log(
+        `📧 [SMTP Notification Queued/Logged - Set SMTP_USER & SMTP_PASS in .env for live relay] To: ${finalOptions.to} | Subject: ${finalOptions.subject}`
+      )
+      return { success: false, error: 'SMTP credentials not yet configured in .env' }
+    }
+
+    try {
+      const info = await transporter.sendMail(finalOptions)
+      console.log(`✅ [SMTP Sent] To: ${finalOptions.to} | Subject: ${finalOptions.subject} | MessageID: ${info.messageId}`)
+      return { success: true, messageId: info.messageId }
+    } catch (err: any) {
+      console.error(`⚠️ [SMTP Send Error] To: ${finalOptions.to} | Subject: ${finalOptions.subject}:`, err?.message || err)
+      return { success: false, error: err?.message || 'SMTP dispatch failed' }
+    }
+  }
+
+  /**
+   * Sends real-time purchase confirmation & PDF receipt to the user's account email
+   * AND sends a real-time purchase settlement notification & PDF receipt to system/admin mail.
+   */
+  async sendPurchaseNotifications(
+    order: any,
+    customerContext?: {
+      accountEmail?: string
+      shippingEmail?: string
+      firstName?: string
+      lastName?: string
+      fullAddress?: string
+    }
+  ): Promise<{
+    userEmailSent: boolean
+    systemEmailSent: boolean
+    receiptData: ServerOrderReceiptData
+  }> {
+    const receiptData = buildReceiptDataFromOrder(order, {
+      firstName: customerContext?.firstName,
+      lastName: customerContext?.lastName,
+      email: customerContext?.accountEmail || customerContext?.shippingEmail,
+      address: customerContext?.fullAddress
+    })
+
+    const receiptText = generateReceiptText(receiptData)
+    const pdfBuffer = generateReceiptPdfBuffer(receiptData)
+    const pdfAttachment = {
+      filename: `Receipt-${receiptData.orderNumber}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf'
+    }
+
+    // Collect recipient user emails (declared account creation email + checkout shipping email if different)
+    const userRecipients = Array.from(
+      new Set(
+        [
+          customerContext?.accountEmail,
+          customerContext?.shippingEmail,
+          order.user?.email
+        ]
+          .filter(Boolean)
+          .map((e) => String(e).trim())
+          .filter((e) => e.includes('@'))
+      )
+    )
+
+    const itemsHtml =
+      receiptData.items && receiptData.items.length > 0
+        ? receiptData.items
+            .map(
+              (item) => `
+              <tr>
+                <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 13px;"><strong>${item.name}</strong></td>
+                <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 13px; text-align: center;">${item.quantity}</td>
+                <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 13px; text-align: right;">${item.price}</td>
+                <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 13px; text-align: right; font-weight: bold;">${item.total}</td>
+              </tr>`
+            )
+            .join('')
+        : ''
+
+    // 1. Send Purchase Confirmation + PDF Receipt to User Email
+    let userEmailSent = false
+    if (userRecipients.length > 0) {
+      const userHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #111827; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #111318; color: #ffffff; padding: 24px;">
+            <span style="background-color: #f59e0b; color: #000000; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase;">Payment Verified & Settled</span>
+            <h1 style="margin: 12px 0 4px; font-size: 22px; color: #ffffff;">Order Confirmed • #${receiptData.orderNumber}</h1>
+            <p style="margin: 0; font-size: 13px; color: #9ca3af;">Midget Micro Drive & Rides • Official Purchase Receipt (PDF Attached)</p>
+          </div>
+          <div style="padding: 24px;">
+            <p style="font-size: 14px; line-height: 1.6;">Hello <strong>${receiptData.userName}</strong>,</p>
+            <p style="font-size: 14px; line-height: 1.6;">Thank you for shopping with <strong>Midget Micro Drive & Rides</strong>. Your payment has been verified and your order is registered for express dispatch from our Nanshan, Shenzhen, Guangdong Province, China Warehouse. Your official generated <strong>PDF Receipt (Receipt-${receiptData.orderNumber}.pdf)</strong> is attached to this email.</p>
+
+            ${
+              itemsHtml
+                ? `
+            <h3 style="font-size: 14px; text-transform: uppercase; color: #374151; margin-top: 20px;">Purchased Units</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <thead>
+                <tr style="background-color: #f3f4f6; text-align: left; font-size: 12px; color: #6b7280;">
+                  <th style="padding: 8px 10px;">Item</th>
+                  <th style="padding: 8px 10px; text-align: center;">Qty</th>
+                  <th style="padding: 8px 10px; text-align: right;">Unit Price</th>
+                  <th style="padding: 8px 10px; text-align: right;">Total</th>
+                </tr>
+              </thead>
+              <tbody>${itemsHtml}</tbody>
+            </table>`
+                : ''
+            }
+
+            <h3 style="font-size: 14px; text-transform: uppercase; color: #374151; margin-top: 20px;">Official Receipt Summary</h3>
+            <pre style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-x: auto;">${receiptText}</pre>
+
+            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">Need assistance? Contact our 24/7 Customer Support team at <a href="mailto:support@midgetdriftcarsandebikes.shop" style="color: #d97706;">support@midgetdriftcarsandebikes.shop</a>.</p>
+          </div>
+        </div>
+      `
+
+      const userMailRes = await this.dispatchMail({
+        to: userRecipients.join(', '),
+        subject: `Official Purchase Receipt & Order Confirmation - #${receiptData.orderNumber}`,
+        text: receiptText,
+        html: userHtml,
+        attachments: [pdfAttachment]
+      })
+      userEmailSent = userMailRes.success
+    }
+
+    // 2. Send Real-Time Purchase Notification + PDF Receipt to System / Admin Mail
+    const { systemEmails } = this.getTransporter()
+    let systemEmailSent = false
+    if (systemEmails.length > 0) {
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #111827; border: 1px solid #f59e0b; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #111318; color: #ffffff; padding: 20px 24px;">
+            <span style="background-color: #10b981; color: #000000; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase;">Real-Time System Alert • Settled Purchase</span>
+            <h2 style="margin: 10px 0 2px; font-size: 20px; color: #f59e0b;">New Purchase Order #${receiptData.orderNumber} (${receiptData.finalCost})</h2>
+            <p style="margin: 0; font-size: 12px; color: #9ca3af;">Timestamp: ${new Date().toUTCString()}</p>
+          </div>
+          <div style="padding: 24px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px;">
+              <tr><td style="padding: 6px 0; color: #6b7280; width: 160px;">Customer Name:</td><td style="padding: 6px 0; font-weight: bold;">${receiptData.userName}</td></tr>
+              <tr><td style="padding: 6px 0; color: #6b7280;">Account / User Email:</td><td style="padding: 6px 0; font-weight: bold;">${userRecipients.join(', ') || 'Guest Checkout'}</td></tr>
+              <tr><td style="padding: 6px 0; color: #6b7280;">Payment Source:</td><td style="padding: 6px 0; font-weight: bold;">${receiptData.paymentSource}</td></tr>
+              <tr><td style="padding: 6px 0; color: #6b7280;">Transaction ID:</td><td style="padding: 6px 0; font-family: monospace;">${receiptData.transactionId}</td></tr>
+              <tr><td style="padding: 6px 0; color: #6b7280;">Settled Total (USD):</td><td style="padding: 6px 0; font-weight: bold; color: #059669;">${receiptData.finalCost}</td></tr>
+              <tr><td style="padding: 6px 0; color: #6b7280;">Shipping Address:</td><td style="padding: 6px 0;">${receiptData.address}</td></tr>
+            </table>
+
+            <h3 style="font-size: 13px; text-transform: uppercase; color: #374151;">Generated Receipt (PDF Attached)</h3>
+            <pre style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; font-family: 'Courier New', Courier, monospace; font-size: 11.5px; line-height: 1.45; white-space: pre-wrap;">${receiptText}</pre>
+          </div>
+        </div>
+      `
+
+      const sysMailRes = await this.dispatchMail({
+        to: systemEmails.join(', '),
+        subject: `[SYSTEM NOTIFICATION] New Purchase #${receiptData.orderNumber} - ${receiptData.finalCost} (${receiptData.userName})`,
+        text: `SYSTEM PURCHASE ALERT\nCustomer Email: ${userRecipients.join(', ')}\n\n${receiptText}`,
+        html: adminHtml,
+        attachments: [pdfAttachment]
+      })
+      systemEmailSent = sysMailRes.success
+    }
+
+    this.recordActivity({
+      type: 'ORDER_PURCHASED',
+      title: `New Purchase Settled • #${receiptData.orderNumber}`,
+      message: `${receiptData.userName} (${userRecipients[0] || 'Customer'}) completed purchase of ${receiptData.finalCost} via ${receiptData.paymentSource}. PDF Receipt generated.`,
+      userEmail: userRecipients[0],
+      orderNumber: receiptData.orderNumber,
+      amount: Number(order.total || 0),
+      emailDispatched: userEmailSent,
+      systemMailDispatched: systemEmailSent
+    })
+
+    return {
+      userEmailSent,
+      systemEmailSent,
+      receiptData
+    }
+  }
+
+  /**
+   * Sends welcome email to user email declared during account creation
+   * AND sends real-time system activity alert to system mail.
+   */
+  async sendAccountRegistrationNotifications(
+    user: { id?: string; email: string; firstName?: string | null; lastName?: string | null; phone?: string | null; role?: string },
+    source: string = 'Direct Account Registration'
+  ): Promise<{ userEmailSent: boolean; systemEmailSent: boolean }> {
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer'
+    const storeUrl = process.env.PRODUCTION_url || 'https://midgetdriftcarsandebikes.shop'
+
+    // 1. Welcome email to the newly registered user
+    const userHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111827; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #111318; color: #ffffff; padding: 24px;">
+          <span style="background-color: #f59e0b; color: #000000; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase;">Account Active</span>
+          <h1 style="margin: 12px 0 4px; font-size: 22px; color: #ffffff;">Welcome to Midget Micro Drive & Rides!</h1>
+        </div>
+        <div style="padding: 24px; font-size: 14px; line-height: 1.6;">
+          <p>Hello <strong>${fullName}</strong>,</p>
+          <p>Your account (<strong style="color: #d97706;">${user.email}</strong>) has been successfully created on <strong>Midget Micro Drive & Rides</strong>.</p>
+          <p>All future purchase confirmations, official PDF receipts, and real-time order dispatch updates will be sent directly to this email address.</p>
+          <div style="margin: 24px 0;">
+            <a href="${storeUrl}" style="background-color: #f59e0b; color: #000000; font-weight: bold; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block;">Explore Fleet Catalog</a>
+          </div>
+          <p style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px;">Questions? Reach our 24/7 support desk at <a href="mailto:support@midgetdriftcarsandebikes.shop" style="color: #d97706;">support@midgetdriftcarsandebikes.shop</a>.</p>
+        </div>
+      </div>
+    `
+
+    const userRes = await this.dispatchMail({
+      to: user.email,
+      subject: `Welcome to Midget Micro Drive & Rides - Account Confirmed`,
+      text: `Hello ${fullName},\n\nYour account (${user.email}) has been registered at Midget Micro Drive & Rides. All order confirmations and official PDF purchase receipts will be sent to this email.\n\nVisit: ${storeUrl}`,
+      html: userHtml
+    })
+
+    // 2. Real-time system notification email to Admin/System mail
+    const { systemEmails } = this.getTransporter()
+    let sysSent = false
+    if (systemEmails.length > 0) {
+      const sysHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #111318; color: #ffffff; padding: 18px 24px;">
+            <h2 style="margin: 0; font-size: 18px; color: #f59e0b;">[System Activity] New User Account Registered</h2>
+          </div>
+          <div style="padding: 20px 24px; font-size: 13px; line-height: 1.6;">
+            <p><strong>Name:</strong> ${fullName}</p>
+            <p><strong>Declared Email:</strong> ${user.email}</p>
+            <p><strong>Phone:</strong> ${user.phone || 'N/A'}</p>
+            <p><strong>Registration Channel:</strong> ${source}</p>
+            <p><strong>Timestamp:</strong> ${new Date().toUTCString()}</p>
+          </div>
+        </div>
+      `
+      const sysRes = await this.dispatchMail({
+        to: systemEmails.join(', '),
+        subject: `[SYSTEM NOTIFICATION] New Account Registered - ${user.email}`,
+        text: `New User Registered\nName: ${fullName}\nEmail: ${user.email}\nChannel: ${source}\nTimestamp: ${new Date().toUTCString()}`,
+        html: sysHtml
+      })
+      sysSent = sysRes.success
+    }
+
+    this.recordActivity({
+      type: 'USER_REGISTERED',
+      title: `New Customer Account • ${fullName}`,
+      message: `Account registered for ${user.email} (${source}). Welcome email dispatched.`,
+      userEmail: user.email,
+      emailDispatched: userRes.success,
+      systemMailDispatched: sysSent
+    })
+
+    return {
+      userEmailSent: userRes.success,
+      systemEmailSent: sysSent
+    }
+  }
+
+  // Backward-compatible wrapper for order confirmation
   async sendOrderConfirmation(order: any, userEmail: string) {
-    try {
-      const mailOptions = {
-                from: process.env.FROM_EMAIL || 'noreply@midgetmicrodrivesandrides.shop',
-        to: userEmail,
-        subject: `Order Confirmation - ${order.orderNumber}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #333;">Order Confirmation</h1>
-            <p>Thank you for your order! Here are the details:</p>
-
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <h2>Order #${order.orderNumber}</h2>
-              <p><strong>Total Amount:</strong> $${order.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <p><strong>Status:</strong> ${order.status}</p>
-              <p><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
-            </div>
-
-            <h3>Items Ordered:</h3>
-            <ul>
-              ${order.items.map((item: any) => `
-                <li style="margin-bottom: 10px;">
-                  <strong>${item.product.name}</strong><br>
-                  Quantity: ${item.quantity}<br>
-                  Price: $${item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </li>
-              `).join('')}
-            </ul>
-
-            <p>We'll send you another email when your order ships.</p>
-
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-              <p>Thank you for shopping with us!</p>
-              <p><strong>Midget Micro Drive & Rides Team</strong></p>
-            </div>
-          </div>
-        `
-      }
-
-      // In development, just log the email instead of sending
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📧 Email would be sent:', mailOptions)
-        return { success: true }
-      }
-
-      const result = await this.transporter.sendMail(mailOptions)
-      return { success: true, messageId: result.messageId }
-    } catch (error) {
-      console.error('Failed to send order confirmation email:', error)
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-    }
+    return this.sendPurchaseNotifications(order, { accountEmail: userEmail })
   }
 
-  // Send order status update email
-  async sendOrderStatusUpdate(order: any, userEmail: string) {
-    try {
-      const statusMessages: { [key: string]: string } = {
-        PROCESSING: 'Your order is being prepared for shipment.',
-        SHIPPED: 'Your order has been shipped and is on its way!',
-        DELIVERED: 'Your order has been delivered. Thank you for shopping with us!'
-      }
+  // Send order status update email to customer + system notification
+  async sendOrderStatusUpdate(order: any, userEmail?: string) {
+    const targetEmail = userEmail || order.user?.email
+    const receiptData = buildReceiptDataFromOrder(order, { email: targetEmail })
+    const pdfBuffer = generateReceiptPdfBuffer(receiptData)
 
-      const mailOptions = {
-                from: process.env.FROM_EMAIL || 'noreply@midgetmicrodrivesandrides.shop',
-        to: userEmail,
-        subject: `Order Update - ${order.orderNumber}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #333;">Order Status Update</h1>
-
-            <p>Your order status has been updated:</p>
-
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <h2>Order #${order.orderNumber}</h2>
-              <p><strong>New Status:</strong> ${order.status}</p>
-              <p><strong>Message:</strong> ${statusMessages[order.status] || 'Your order status has been updated.'}</p>
-              <p><strong>Updated:</strong> ${new Date(order.updatedAt).toLocaleDateString()}</p>
-            </div>
-
-            ${order.status === 'SHIPPED' ? `
-              <div style="background-color: #e8f4f8; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <h3>Shipping Information</h3>
-                <p>Track your package or contact us if you have any questions about delivery.</p>
-              </div>
-            ` : ''}
-
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-              <p>Thank you for shopping with us!</p>
-              <p><strong>Midget Micro Drive & Rides Team</strong></p>
-            </div>
-          </div>
-        `
-      }
-
-      // In development, just log the email instead of sending
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📧 Email would be sent:', mailOptions)
-        return { success: true }
-      }
-
-      const result = await this.transporter.sendMail(mailOptions)
-      return { success: true, messageId: result.messageId }
-    } catch (error) {
-      console.error('Failed to send order status update email:', error)
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    const statusMessages: { [key: string]: string } = {
+      PENDING: 'Your order has been logged and is awaiting processing.',
+      PROCESSING: 'Your order payment is settled and our warehouse team is preparing your vehicle for dispatch.',
+      SHIPPED: 'Your order has been dispatched from our Nanshan, Shenzhen, Guangdong Province, China Warehouse!',
+      DELIVERED: 'Your order has been marked as delivered. Thank you for riding with Midget Micro Drive & Rides!',
+      CANCELLED: 'Your order has been cancelled. Contact support if you have any questions.'
     }
-  }
 
-  // Send password reset email
-  async sendPasswordResetEmail(email: string, resetToken: string) {
-    try {
-      const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`
-
-      const mailOptions = {
-        from: process.env.FROM_EMAIL || 'noreply@trendstore.com',
-        to: email,
-        subject: 'Password Reset Request',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #333;">Password Reset</h1>
-
-            <p>You requested a password reset for your account.</p>
-
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p>Click the button below to reset your password:</p>
-              <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
-                Reset Password
-              </a>
-              <p><small>If the button doesn't work, copy and paste this link into your browser:</small></p>
-              <p><small>${resetUrl}</small></p>
-            </div>
-
-            <p><small>This link will expire in 1 hour for security reasons.</small></p>
-
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-              <p>If you didn't request this reset, please ignore this email.</p>
-              <p><strong>Midget Micro Drive & Rides Team</strong></p>
-            </div>
+    let userSent = false
+    if (targetEmail) {
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #111318; color: #ffffff; padding: 20px 24px;">
+            <h2 style="margin: 0; font-size: 20px; color: #f59e0b;">Order Status Update • #${receiptData.orderNumber}</h2>
           </div>
-        `
-      }
-
-      // In development, just log the email instead of sending
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📧 Email would be sent:', mailOptions)
-        return { success: true }
-      }
-
-      const result = await this.transporter.sendMail(mailOptions)
-      return { success: true, messageId: result.messageId }
-    } catch (error) {
-      console.error('Failed to send password reset email:', error)
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+          <div style="padding: 24px; font-size: 14px; line-height: 1.6;">
+            <p>Hello <strong>${receiptData.userName}</strong>,</p>
+            <p>The status of your order <strong>#${receiptData.orderNumber}</strong> has been updated to: <strong style="color: #d97706;">${order.status}</strong>.</p>
+            <p>${statusMessages[order.status] || 'Your order status has been updated.'}</p>
+            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">Your updated PDF purchase receipt is attached for your records.</p>
+          </div>
+        </div>
+      `
+      const res = await this.dispatchMail({
+        to: targetEmail,
+        subject: `Order #${receiptData.orderNumber} Status Update: ${order.status}`,
+        text: `Hello ${receiptData.userName},\n\nYour order #${receiptData.orderNumber} status has been updated to ${order.status}.\n${statusMessages[order.status] || ''}`,
+        html,
+        attachments: [
+          {
+            filename: `Receipt-${receiptData.orderNumber}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      })
+      userSent = res.success
     }
+
+    const { systemEmails } = this.getTransporter()
+    let sysSent = false
+    if (systemEmails.length > 0) {
+      const sysRes = await this.dispatchMail({
+        to: systemEmails.join(', '),
+        subject: `[SYSTEM NOTIFICATION] Order #${receiptData.orderNumber} Status -> ${order.status}`,
+        text: `Order #${receiptData.orderNumber} for ${receiptData.userName} (${targetEmail || 'Guest'}) was updated to status: ${order.status}.`
+      })
+      sysSent = sysRes.success
+    }
+
+    this.recordActivity({
+      type: 'ORDER_STATUS_UPDATED',
+      title: `Order #${receiptData.orderNumber} -> ${order.status}`,
+      message: `Status updated to ${order.status} for ${receiptData.userName} (${targetEmail || 'Customer'}).`,
+      userEmail: targetEmail,
+      orderNumber: receiptData.orderNumber,
+      amount: Number(order.total || 0),
+      emailDispatched: userSent,
+      systemMailDispatched: sysSent
+    })
+
+    return { success: userSent || sysSent }
   }
 }
 

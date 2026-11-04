@@ -13,7 +13,10 @@ import {
   updateOrderStatus,
   getUsers,
   updateUserStatus,
-  getAnalytics
+  getAnalytics,
+  getNotifications,
+  streamNotifications,
+  downloadAdminOrderReceiptPdf
 } from '../controllers/adminController.js'
 import { protect, authorize } from '../middleware/auth.js'
 
@@ -103,7 +106,12 @@ router.delete('/products/:id', deleteProduct)
 
 // Order management
 router.get('/orders', getOrders)
+router.get('/orders/:id/receipt.pdf', downloadAdminOrderReceiptPdf)
 router.put('/orders/:id/status', updateOrderStatus)
+
+// Real-time system activity notifications
+router.get('/notifications', getNotifications)
+router.get('/notifications/stream', streamNotifications)
 
 // User management
 router.get('/users', getUsers)

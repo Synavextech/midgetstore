@@ -15,28 +15,13 @@ import {
 import { paymentApi, orderApi } from '../services/api'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
+import {
+  OrderReceiptData,
+  generateReceiptText,
+  downloadReceiptPdf
+} from '../utils/receiptPdf'
 
-export interface OrderReceiptData {
-  date: string
-  orderDate: string
-  orderNumber: string
-  transactionId: string
-  userName: string
-  address: string
-  paymentSource: string
-  initialCharge: string
-  finalCost: string
-  totalRefund: string
-  refundTrans: string
-  shippingCost?: string
-  tax?: string
-  items?: Array<{
-    name: string
-    quantity: number
-    price: string
-    total: string
-  }>
-}
+export type { OrderReceiptData }
 
 interface LocationState {
   orderNumber?: string
@@ -249,50 +234,23 @@ const OrderSuccessPage = () => {
     refundTrans: 'N/A'
   }
 
-  // Exact receipt text formatting required by specification
-  const generateReceiptText = (r: OrderReceiptData): string => {
-    return [
-      `Receipt `,
-      ` Order Summary `,
-      `Date: ${r.date}`,
-      `--------------------------------------------------------------------------------  `,
-      `Hello, `,
-      `Thank you for choosing to shop with us. Here's a summary of your order. `,
-      `Order Details `,
-      `********************************************************************************  `,
-      `Order Date     : ${r.orderDate}`,
-      `Order Number   : ${r.orderNumber}`,
-      `Transaction ID : ${r.transactionId}`,
-      `User Name      : ${r.userName}`,
-      `Address        : ${r.address}`,
-      `Payment source : ${r.paymentSource}`,
-      `Initial Charge : ${r.initialCharge}`,
-      `Final Cost     : ${r.finalCost}`,
-      `Total Refund   : ${r.totalRefund || '$0.00'}`,
-      `Refund Trans   : N/A`,
-      `N/A`,
-      ``,
-      `Full details for this order have been reviewed by user`,
-      `Additional Transaction Details:`,
-      `If you've purchased a this item, it means you know the item you purchased and have agreed with our terms and conditions that says payment is non-refundable.`,
-      `Feel free to contact our Customer Service via email (support@midgetdriftcarsandebikes.shop) if you have any questions or concerns. They're available 24/7.`,
-      `Regards,`,
-      `Team`,
-      `https://midgetdriftcarsandebikes.shop/`
-    ].join('\n')
-  }
+  // Automatically generate and download PDF receipt once when purchase completes
+  useEffect(() => {
+    if (!loadingPayPal && !payPalError && activeReceipt?.orderNumber) {
+      const autoKey = `auto_pdf_receipt_${activeReceipt.orderNumber}`
+      if (!sessionStorage.getItem(autoKey)) {
+        sessionStorage.setItem(autoKey, 'true')
+        try {
+          downloadReceiptPdf(activeReceipt)
+        } catch (e) {
+          console.warn('Auto PDF receipt download skipped:', e)
+        }
+      }
+    }
+  }, [loadingPayPal, payPalError, activeReceipt.orderNumber])
 
   const handleDownloadReceipt = () => {
-    const textContent = generateReceiptText(activeReceipt)
-    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `Receipt-${activeReceipt.orderNumber}.txt`
-    document.body.appendChild(anchor)
-    anchor.click()
-    document.body.removeChild(anchor)
-    URL.revokeObjectURL(url)
+    downloadReceiptPdf(activeReceipt)
   }
 
   const handlePrintReceipt = () => {
@@ -358,7 +316,7 @@ const OrderSuccessPage = () => {
               className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider text-xs px-5 py-3 rounded-xl shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              Download Receipt (.txt)
+              Download Receipt (.pdf)
             </button>
 
             <button
@@ -366,7 +324,7 @@ const OrderSuccessPage = () => {
               className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-xs px-5 py-3 rounded-xl border border-gray-300 dark:border-neutral-700 transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
-              Print / Save as PDF
+              Print Receipt
             </button>
 
             <button

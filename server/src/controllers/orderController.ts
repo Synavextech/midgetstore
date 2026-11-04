@@ -2,6 +2,8 @@ import { Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { databaseService } from '../services/databaseService.js'
+import { emailService } from '../utils/emailService.js'
+import { buildReceiptDataFromOrder, generateReceiptPdfBuffer } from '../utils/receiptPdf.js'
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -66,7 +68,15 @@ export const createOrder = async (req: Request, res: Response) => {
           secret,
           { expiresIn: process.env.JWT_EXPIRE || '30d' }
         )
+
+        // Dispatch welcome & system notification emails for newly created customer account
+        emailService
+          .sendAccountRegistrationNotifications(newUser, 'Checkout Account Creation')
+          .catch((err) => console.error('Checkout account registration email error:', err))
       }
+    } else if (!authUserToReturn && userId) {
+      // Fetch authenticated user's declared account email & profile
+      authUserToReturn = await databaseService.findUserById(userId).catch(() => null)
     }
 
     // Determine order items (either from request body or user's database cart)
@@ -172,6 +182,22 @@ export const createOrder = async (req: Request, res: Response) => {
       notes,
       items: orderItems
     })
+
+    // Build full shipping address string for notifications
+    const fullAddress = shippingAddressInput
+      ? `${shippingAddressInput.address1 || ''}${shippingAddressInput.address2 ? `, ${shippingAddressInput.address2}` : ''}, ${shippingAddressInput.city || ''}, ${shippingAddressInput.state || ''} ${shippingAddressInput.postalCode || shippingAddressInput.zipCode || ''}, ${shippingAddressInput.country || 'United States'}`
+      : undefined
+
+    // Dispatch real-time purchase confirmation & PDF receipt to user email (declared during account creation) AND system mail
+    emailService
+      .sendPurchaseNotifications(order, {
+        accountEmail: authUserToReturn?.email || req.user?.email || customerEmail,
+        shippingEmail: customerEmail,
+        firstName: shippingAddressInput?.firstName || authUserToReturn?.firstName,
+        lastName: shippingAddressInput?.lastName || authUserToReturn?.lastName,
+        fullAddress
+      })
+      .catch((err) => console.error('Order purchase notification error:', err))
 
     if (tokenToReturn) {
       res.cookie('token', tokenToReturn, {
@@ -301,6 +327,10 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 
     const updatedOrder = await databaseService.updateOrderStatus(orderId, status)
 
+    emailService
+      .sendOrderStatusUpdate(updatedOrder, updatedOrder.user?.email)
+      .catch((err) => console.error('Order status update email error:', err))
+
     res.status(200).json({
       success: true,
       message: 'Order status updated successfully',
@@ -354,6 +384,10 @@ export const cancelOrder = async (req: Request, res: Response) => {
     }
 
     const updatedOrder = await databaseService.updateOrderStatus(orderId, 'CANCELLED')
+
+    emailService
+      .sendOrderStatusUpdate(updatedOrder, order.user?.email || req.user?.email)
+      .catch((err) => console.error('Order cancellation email error:', err))
 
     res.status(200).json({
       success: true,
@@ -410,6 +444,44 @@ export const getOrderStats = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Server Error'
+    })
+  }
+}
+
+// @desc    Download generated PDF receipt for an order
+// @route   GET /api/orders/:id/receipt.pdf
+// @access  Private (Customer owner or Admin)
+export const downloadOrderReceiptPdf = async (req: Request, res: Response) => {
+  try {
+    const orderId = req.params.id
+    const order = await databaseService.findOrderById(orderId)
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      })
+    }
+
+    if (req.user && req.user.role !== 'ADMIN' && order.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to download this receipt'
+      })
+    }
+
+    const receiptData = buildReceiptDataFromOrder(order)
+    const pdfBuffer = generateReceiptPdfBuffer(receiptData)
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="Receipt-${receiptData.orderNumber}.pdf"`)
+    res.setHeader('Content-Length', pdfBuffer.length)
+    return res.status(200).send(pdfBuffer)
+  } catch (error) {
+    console.error('Error generating order receipt PDF:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate receipt PDF'
     })
   }
 }

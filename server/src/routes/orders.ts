@@ -5,7 +5,8 @@ import {
   getOrder,
   updateOrderStatus,
   cancelOrder,
-  getOrderStats
+  getOrderStats,
+  downloadOrderReceiptPdf
 } from '../controllers/orderController.js'
 import { protect, authorize, optionalAuth } from '../middleware/auth.js'
 
@@ -13,6 +14,7 @@ const router = express.Router()
 
 // Customer order placement allows guest checkout with optional authentication
 router.post('/', optionalAuth, createOrder)
+router.get('/:id/receipt.pdf', optionalAuth, downloadOrderReceiptPdf)
 
 // Protected customer and admin routes
 router.use(protect)

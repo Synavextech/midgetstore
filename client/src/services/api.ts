@@ -390,6 +390,11 @@ export const adminApi = {
       body: formData,
     })
   },
+
+  // Get recent real-time system activity notifications (admin)
+  getNotifications: async (): Promise<ApiResponse<any[]>> => {
+    return apiRequest('/admin/notifications')
+  },
 }
 
 // Payment API functions (Stripe Card & PayPal only)

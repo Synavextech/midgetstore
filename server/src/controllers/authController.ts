@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt, { Secret } from 'jsonwebtoken'
 import { databaseService } from '../services/databaseService.js'
+import { emailService } from '../utils/emailService.js'
 
 // Extend Request type to include user
 declare global {
@@ -63,6 +64,11 @@ export const register = async (req: Request, res: Response) => {
 
     // Generate token
     const token = generateToken(user.id, user.email, user.role)
+
+    // Dispatch real-time account creation emails (welcome email to user + system activity alert to admin mail)
+    emailService
+      .sendAccountRegistrationNotifications(user, 'Account Registration')
+      .catch((err) => console.error('Registration notification error:', err))
 
     res.status(201).json({
       success: true,
@@ -128,6 +134,15 @@ export const login = async (req: Request, res: Response) => {
 
     // Generate token
     const token = generateToken(user.id, user.email, user.role)
+
+    emailService.recordActivity({
+      type: 'USER_LOGIN',
+      title: `User Sign-In • ${user.email}`,
+      message: `${user.firstName || ''} ${user.lastName || ''} (${user.email}) signed in as ${user.role}.`,
+      userEmail: user.email,
+      emailDispatched: false,
+      systemMailDispatched: false
+    })
 
     res.status(200).json({
       success: true,

@@ -645,7 +645,7 @@ export class DatabaseService {
       .from('orders')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .select('*, order_items(*, products(*))')
+      .select('*, order_items(*, products(*)), users(*), shipping_address:addresses!orders_shipping_address_id_fkey(*)')
       .single()
 
     if (error) throw error

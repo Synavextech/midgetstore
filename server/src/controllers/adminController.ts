@@ -1,5 +1,7 @@
 import { Request, Response } from 'express'
 import { databaseService } from '../services/databaseService.js'
+import { emailService } from '../utils/emailService.js'
+import { buildReceiptDataFromOrder, generateReceiptPdfBuffer } from '../utils/receiptPdf.js'
 
 // @desc    Get admin dashboard data
 // @route   GET /api/admin/dashboard
@@ -281,6 +283,10 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 
     const updatedOrder = await databaseService.updateOrderStatus(orderId, status)
 
+    emailService
+      .sendOrderStatusUpdate(updatedOrder, updatedOrder.user?.email)
+      .catch((err) => console.error('Admin order status update email error:', err))
+
     res.status(200).json({
       success: true,
       message: 'Order status updated successfully',
@@ -426,6 +432,70 @@ export const getAnalytics = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Server Error'
+    })
+  }
+}
+
+// @desc    Get recent real-time system activity notifications (Admin)
+// @route   GET /api/admin/notifications
+// @access  Private/Admin
+export const getNotifications = async (_req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    data: emailService.getRecentActivities(30)
+  })
+}
+
+// @desc    Stream real-time system activity notifications via SSE (Admin)
+// @route   GET /api/admin/notifications/stream
+// @access  Private/Admin
+export const streamNotifications = (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.flushHeaders?.()
+
+  const onActivity = (event: any) => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`)
+  }
+
+  emailService.activityEmitter.on('activity', onActivity)
+
+  const heartbeat = setInterval(() => {
+    res.write(`: heartbeat\n\n`)
+  }, 25000)
+
+  req.on('close', () => {
+    clearInterval(heartbeat)
+    emailService.activityEmitter.off('activity', onActivity)
+  })
+}
+
+// @desc    Download generated PDF receipt for an order (Admin)
+// @route   GET /api/admin/orders/:id/receipt.pdf
+// @access  Private/Admin
+export const downloadAdminOrderReceiptPdf = async (req: Request, res: Response) => {
+  try {
+    const order = await databaseService.findOrderById(req.params.id)
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      })
+    }
+
+    const receiptData = buildReceiptDataFromOrder(order)
+    const pdfBuffer = generateReceiptPdfBuffer(receiptData)
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="Receipt-${receiptData.orderNumber}.pdf"`)
+    res.setHeader('Content-Length', pdfBuffer.length)
+    return res.status(200).send(pdfBuffer)
+  } catch (error) {
+    console.error('Error generating admin order receipt PDF:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate receipt PDF'
     })
   }
 }

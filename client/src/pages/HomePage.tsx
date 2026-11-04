@@ -29,7 +29,7 @@ const CATEGORIES = [
 
 // Safe URL encoder for filenames with spaces and special characters
 const getSafeMediaUrl = (url?: string) => {
-  if (!url) return '/images/hero.jpg'
+  if (!url) return '/images/hero1.jpg'
   if (url.startsWith('http://') || url.startsWith('https://')) return url
   const parts = url.split('/')
   return parts.map((p, idx) => idx === 0 && p === '' ? '' : encodeURIComponent(decodeURIComponent(p))).join('/')
@@ -182,7 +182,7 @@ export const HomePage: React.FC = () => {
       <header className="relative w-full h-[64vh] min-h-[480px] max-h-[740px] flex items-center overflow-hidden bg-black border-b border-gray-200 dark:border-white/10">
         <div className="absolute inset-0 z-0">
           <img
-            src="/images/hero1.jpeg"
+            src="/images/hero1.jpg"
             alt="Midget Micro Drive & Rides Fleet"
             className="w-full h-full object-cover opacity-60"
             onError={(e) => {
