@@ -518,7 +518,7 @@ export const HomePage: React.FC = () => {
                   {/* Instagram */}
                   <a
                     href="https://instagram.com"
-                    target="https://www.instagram.com/midgetmicrocars?dlrf=MWZuYTI0N2NoZDl3Zw=="
+                    target="https://www.instagram.com/midgetmicrocars?cplk=MXQxMjRoeWkxMGpycw=="
                     rel="noopener noreferrer"
                     aria-label="Follow on Instagram"
                     title="Follow on Instagram"
