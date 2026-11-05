@@ -517,7 +517,7 @@ export const HomePage: React.FC = () => {
                 <div className="flex items-center gap-2.5">
                   {/* Instagram */}
                   <a
-                    href="https://instagram.com"
+                    href="https://www.instagram.com/midgetmicrocars?cplk=MXQxMjRoeWkxMGpycw=="
                     target="https://www.instagram.com/midgetmicrocars?cplk=MXQxMjRoeWkxMGpycw=="
                     rel="noopener noreferrer"
                     aria-label="Follow on Instagram"
