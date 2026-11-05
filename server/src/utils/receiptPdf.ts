@@ -141,7 +141,7 @@ export const generateReceiptText = (r: ServerOrderReceiptData): string => {
     `Full details for this order have been reviewed by user`,
     `Additional Transaction Details:`,
     `If you've purchased a this item, it means you know the item you purchased and have agreed with our terms and conditions that says payment is non-refundable.`,
-    `Feel free to contact our Customer Service via email (support@midgetdriftcarsandebikes.shop) if you have any questions or concerns. They're available 24/7.`,
+    `Feel free to contact our Customer Service via email (support@midgetdriftcarsandebikes.shop) or WhatsApp (+1 909 308-8313) if you have any questions or concerns. They're available 24/7.`,
     `Regards,`,
     `Team`,
     `https://midgetdriftcarsandebikes.shop/`

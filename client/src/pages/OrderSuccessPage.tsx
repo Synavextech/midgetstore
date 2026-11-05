@@ -433,7 +433,7 @@ const OrderSuccessPage = () => {
                 If you've purchased a this item, it means you know the item you purchased and have agreed with our terms and conditions that says payment is non-refundable.
               </p>
               <p>
-                Feel free to contact our Customer Service via email (<span className="text-amber-500 font-semibold underline">support@midgetdriftcarsandebikes.shop</span>) if you have any questions or concerns. They're available 24/7.
+                Feel free to contact our Customer Service via email (<span className="text-amber-500 font-semibold underline">support@midgetdriftcarsandebikes.shop</span>) or WhatsApp (<a href="https://wa.me/19093088313" target="_blank" rel="noopener noreferrer" className="text-amber-500 font-semibold underline">+1 909 308-8313</a>) if you have any questions or concerns. They're available 24/7.
               </p>
               <p className="pt-1">Regards,<br />Team<br /><a href="https://midgetdriftcarsandebikes.shop/" target="_blank" rel="noreferrer" className="text-amber-500 font-semibold hover:underline">https://midgetdriftcarsandebikes.shop/</a></p>
             </div>

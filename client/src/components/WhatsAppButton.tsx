@@ -5,10 +5,17 @@ export const WhatsAppButton: React.FC = () => {
 
   // Retrieve configured phone number from environment variables with fallback
   const rawNumber =
-    (import.meta as any).env?.VITE_WHATSAPP_NUMBER || '+19093088313'
+    (import.meta as any).env?.VITE_WHATSAPP_NUMBER || '19093088313'
 
-  // Clean phone number so wa.me only receives digits
-  const cleanNumber = rawNumber.replace(/\D/g, '')
+  // Clean phone number so wa.me only receives digits. Ensure old numbers like +19785236630 are never used
+  let cleanNumber = String(rawNumber).replace(/\D/g, '')
+  if (!cleanNumber || cleanNumber.includes('9785236630') || cleanNumber.includes('5128903450')) {
+    cleanNumber = '19093088313'
+  }
+  // Ensure North American country code prefix is included
+  if (cleanNumber.length === 10 && cleanNumber.startsWith('909')) {
+    cleanNumber = '1' + cleanNumber
+  }
 
   const defaultMessage = encodeURIComponent(
     'Hello! I would like some assistance regarding Midget Micro Drives & Rides.'

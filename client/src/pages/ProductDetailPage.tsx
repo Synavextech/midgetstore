@@ -135,6 +135,7 @@ KEY TECHNICAL SPECIFICATIONS:
 
 Official Website: https://midgetmicrodrivesandrides.shop
 Customer Support: support@midgetmicrodrivesandrides.shop
+WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
 ======================================================`
     const blob = new Blob([specSheet], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)

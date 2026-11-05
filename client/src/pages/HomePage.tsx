@@ -498,7 +498,14 @@ export const HomePage: React.FC = () => {
 
                 <p>Building 6, Lecong Industrial Park</p>
                 <p>Shunde District, Foshan, Guangdong 503315, China</p>
-                <p className="text-amber-600 dark:text-amber-400 font-semibold pt-1">📞 +1 (909) 308-8313</p>
+                <a
+                  href="https://wa.me/19093088313?text=Hello!%20I%20would%20like%20some%20assistance%20regarding%20Midget%20Micro%20Drives%20%26%20Rides."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-600 dark:text-amber-400 font-semibold pt-1 block hover:underline"
+                >
+                  📞 WhatsApp / Call: +1 (909) 308-8313
+                </a>
                 <p className="text-amber-600 dark:text-amber-400 font-semibold">✉️ support@midgetmicrodrivesandrides.shop</p>
               </div>
 
