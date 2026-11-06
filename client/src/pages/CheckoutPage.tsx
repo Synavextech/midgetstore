@@ -76,7 +76,8 @@ const CheckoutForm: React.FC = () => {
     return `$${(price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
 
-  const shippingCost = totalPrice >= 500 ? 0 : 25
+  // 100% Free Express Shipping on all store orders
+  const shippingCost = 0
   const estimatedTax = totalPrice * 0.05
   const grandTotal = totalPrice + shippingCost + estimatedTax
 
@@ -269,7 +270,7 @@ const CheckoutForm: React.FC = () => {
         finalCost: `$${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         totalRefund: '$0.00',
         refundTrans: 'N/A',
-        shippingCost: shippingCost === 0 ? '$0.00 (Free Shipping)' : `$${shippingCost.toFixed(2)}`,
+        shippingCost: '$0.00 (Free Express Shipping)',
         tax: `$${estimatedTax.toFixed(2)}`,
         items: items.map(i => ({
           name: i.product.name,
@@ -733,7 +734,7 @@ const CheckoutForm: React.FC = () => {
                 <div className="flex justify-between text-gray-600 dark:text-neutral-400 font-medium">
                   <span>China Warehouse Express Shipping</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    {shippingCost === 0 ? 'FREE (Over $500)' : formatPrice(shippingCost)}
+                    FREE ($0.00)
                   </span>
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-neutral-400 font-medium">

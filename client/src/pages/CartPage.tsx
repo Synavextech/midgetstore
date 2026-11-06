@@ -209,9 +209,9 @@ const CartPage = () => {
                     <span className="font-bold text-gray-900 dark:text-white">{formatPrice(totalPrice)}</span>
                   </div>
                   <div className="flex justify-between text-gray-600 dark:text-neutral-400 font-medium">
-                    <span>Shipping</span>
+                    <span>Express Shipping</span>
                     <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                      {totalPrice >= 500 ? 'FREE' : 'Calculated at checkout'}
+                      FREE ($0.00)
                     </span>
                   </div>
                   <div className="flex justify-between text-gray-600 dark:text-neutral-400 font-medium">

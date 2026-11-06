@@ -253,8 +253,8 @@ export const HomePage: React.FC = () => {
                 <Truck className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">US Express Shipping</h4>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">China Depot fast dispatch</p>
+                <h4 className="text-[11px] font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">Free Express Shipping</h4>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">$0.00 Delivery on All Orders</p>
               </div>
             </div>
 

@@ -160,8 +160,8 @@ export const createOrder = async (req: Request, res: Response) => {
       })
     }
 
-    // USD Calculations: Free shipping over $500, else $25 flat rate, 5% sales tax
-    const shipping = subtotal >= 500 ? 0 : 25
+    // USD Calculations: 100% Free Worldwide & US Express Shipping on all orders, 5% sales tax
+    const shipping = 0
     const tax = Math.round(subtotal * 0.05 * 100) / 100
     const total = Math.round((subtotal + tax + shipping) * 100) / 100
 

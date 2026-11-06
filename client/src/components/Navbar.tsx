@@ -68,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
-              <span className="whitespace-nowrap font-extrabold">FREE EXPRESS US SHIPPING ON ALL ORDERS OVER $500</span>
+              <span className="whitespace-nowrap font-extrabold">FREE EXPRESS SHIPPING ON ALL ORDERS ($0.00)</span>
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
@@ -87,7 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCart }) => {
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
-              <span className="whitespace-nowrap font-extrabold">FREE EXPRESS US SHIPPING ON ALL ORDERS OVER $500</span>
+              <span className="whitespace-nowrap font-extrabold">FREE EXPRESS SHIPPING ON ALL ORDERS ($0.00)</span>
             </span>
             <span className="inline-flex items-center gap-6 px-6">
               <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-black/60" />
