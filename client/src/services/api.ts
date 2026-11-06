@@ -421,14 +421,29 @@ export const paymentApi = {
     })
   },
 
+  // Get PayPal public configuration for SDK
+  getPayPalConfig: async (): Promise<ApiResponse<{
+    clientId: string
+    mode: string
+    currency: string
+  }>> => {
+    return apiRequest('/payments/paypal/config')
+  },
+
   // Create PayPal order (USD)
-  createPayPalOrder: async (amount: number): Promise<ApiResponse<{
+  createPayPalOrder: async (amount: number, payer?: {
+    email?: string
+    firstName?: string
+    lastName?: string
+    phone?: string
+    address?: any
+  }): Promise<ApiResponse<{
     orderId: string
     approveUrl: string
   }>> => {
     return apiRequest('/payments/paypal/create-order', {
       method: 'POST',
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ amount, payer }),
     })
   },
 

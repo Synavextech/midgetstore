@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   X,
   RefreshCw,
-  Image as ImageIcon,
   Download,
   FileText,
   Printer,

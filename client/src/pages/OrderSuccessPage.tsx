@@ -215,7 +215,6 @@ const OrderSuccessPage = () => {
   }
 
   const [copied, setCopied] = useState(false)
-  const [showReceiptPreview, setShowReceiptPreview] = useState(true)
 
   const displayOrderNumber = orderNumber || `MMR-${Math.floor(100000 + Math.random() * 900000)}`
   const formattedTotal = total ? `$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null

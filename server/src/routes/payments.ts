@@ -144,10 +144,24 @@ router.post('/stripe/confirm', async (req, res) => {
 // 2. PAYPAL PAYMENT INTEGRATION (USD)
 // ==========================================
 
+// Get PayPal Public Configuration for Frontend SDK
+router.get('/paypal/config', (req, res) => {
+  const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID || ''
+  const mode = process.env.PAYPAL_MODE || 'live'
+  res.status(200).json({
+    success: true,
+    data: {
+      clientId,
+      mode,
+      currency: 'USD'
+    }
+  })
+})
+
 // Create PayPal Order
 router.post('/paypal/create-order', async (req, res) => {
   try {
-    const { amount } = req.body
+    const { amount, payer } = req.body
 
     if (!amount || Number(amount) <= 0) {
       return res.status(400).json({
@@ -162,32 +176,45 @@ router.post('/paypal/create-order', async (req, res) => {
     const origin = (req.headers.origin as string) || (req.headers.referer as string) || 'https://midgetdriftcarsandebikes.shop'
     const cleanOrigin = origin.replace(/\/+$/, '')
 
+    const payload: any = {
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          reference_id: `MMR-${Date.now()}`,
+          description: 'Midget Micro Drive & Rides Order',
+          amount: {
+            currency_code: 'USD',
+            value: formattedAmount
+          }
+        }
+      ],
+      application_context: {
+        brand_name: 'Midget Micro Drive & Rides',
+        landing_page: 'GUEST_CHECKOUT',
+        shipping_preference: 'NO_SHIPPING',
+        user_action: 'PAY_NOW',
+        return_url: `${cleanOrigin}/order-success`,
+        cancel_url: `${cleanOrigin}/checkout`
+      }
+    }
+
+    if (payer && payer.email) {
+      payload.payer = {
+        email_address: payer.email,
+        name: {
+          given_name: payer.firstName || undefined,
+          surname: payer.lastName || undefined
+        }
+      }
+    }
+
     const orderRes = await fetch(`${baseUrl}/v2/checkout/orders`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        intent: 'CAPTURE',
-        purchase_units: [
-          {
-            reference_id: `MMR-${Date.now()}`,
-            description: 'Midget Micro Drive & Rides Order',
-            amount: {
-              currency_code: 'USD',
-              value: formattedAmount
-            }
-          }
-        ],
-        application_context: {
-          brand_name: 'Midget Micro Drive & Rides',
-          shipping_preference: 'NO_SHIPPING',
-          user_action: 'PAY_NOW',
-          return_url: `${cleanOrigin}/order-success`,
-          cancel_url: `${cleanOrigin}/checkout`
-        }
-      })
+      body: JSON.stringify(payload)
     })
 
     const orderData = await orderRes.json()
