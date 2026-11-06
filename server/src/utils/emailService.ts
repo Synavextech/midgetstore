@@ -13,11 +13,15 @@ dotenv.config()
 export interface SystemActivityEvent {
   id: string
   type:
+    | 'ORDER_CREATED'
     | 'ORDER_PURCHASED'
     | 'USER_REGISTERED'
     | 'USER_LOGIN'
     | 'ORDER_STATUS_UPDATED'
     | 'ORDER_CANCELLED'
+    | 'DELIVERY_TIME_UPDATED'
+    | 'PENDING_ORDER_REMINDER'
+    | 'ITEM_VIEWED'
     | 'PRODUCT_UPDATED'
   title: string
   message: string
@@ -38,8 +42,9 @@ class EmailService {
   }
 
   private getTransporter(): { transporter: nodemailer.Transporter | null; isConfigured: boolean; fromAddress: string; systemEmails: string[] } {
-    const host = process.env.SMTP_HOST || 'smtp.gmail.com'
-    const port = parseInt(process.env.SMTP_PORT || '587', 10)
+    const host = process.env.SMTP_HOST || 'mail.privateemail.com'
+    const rawPort = parseInt(process.env.SMTP_PORT || '465', 10)
+    const port = rawPort === 456 ? 465 : rawPort
     const secure =
       process.env.SMTP_SECURE === 'true' ||
       port === 465
@@ -390,12 +395,14 @@ class EmailService {
     const targetEmail = userEmail || order.user?.email
     const receiptData = buildReceiptDataFromOrder(order, { email: targetEmail })
     const pdfBuffer = generateReceiptPdfBuffer(receiptData)
+    const deliveryEstimate = order.estimatedDeliveryTime || order.estimated_delivery_time || '21-35 business days (Express Courier from China Hub)'
+    const chinaStore = order.storeLocation || order.store_location || 'Shenzhen Technology & Electric Mobility Hub, China'
 
     const statusMessages: { [key: string]: string } = {
-      PENDING: 'Your order has been logged and is awaiting processing.',
-      PROCESSING: 'Your order payment is settled and our warehouse team is preparing your vehicle for dispatch.',
-      SHIPPED: 'Your order has been dispatched from our Nanshan, Shenzhen, Guangdong Province, China Warehouse!',
-      DELIVERED: 'Your order has been marked as delivered. Thank you for riding with Midget Micro Drive & Rides!',
+      PENDING: 'Your order has been logged and is awaiting payment settlement or processing.',
+      PROCESSING: `Your order payment is settled and our warehouse team at ${chinaStore} is preparing your vehicle for express dispatch.`,
+      SHIPPED: `Your order has been dispatched from our ${chinaStore}! Estimated delivery time: ${deliveryEstimate}.`,
+      DELIVERED: `Your order has been marked as delivered. Fulfilling China Hub: ${chinaStore}. Thank you for riding with Midget Micro Drive & Rides!`,
       CANCELLED: 'Your order has been cancelled. Contact support if you have any questions.'
     }
 
@@ -410,6 +417,10 @@ class EmailService {
             <p>Hello <strong>${receiptData.userName}</strong>,</p>
             <p>The status of your order <strong>#${receiptData.orderNumber}</strong> has been updated to: <strong style="color: #d97706;">${order.status}</strong>.</p>
             <p>${statusMessages[order.status] || 'Your order status has been updated.'}</p>
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-size: 13px;">
+              <p style="margin: 0 0 4px;"><strong>Estimated Delivery Window:</strong> ${deliveryEstimate}</p>
+              <p style="margin: 0;"><strong>China Fulfillment Hub:</strong> ${chinaStore}</p>
+            </div>
             <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">Your updated PDF purchase receipt is attached for your records.</p>
           </div>
         </div>
@@ -417,7 +428,7 @@ class EmailService {
       const res = await this.dispatchMail({
         to: targetEmail,
         subject: `Order #${receiptData.orderNumber} Status Update: ${order.status}`,
-        text: `Hello ${receiptData.userName},\n\nYour order #${receiptData.orderNumber} status has been updated to ${order.status}.\n${statusMessages[order.status] || ''}`,
+        text: `Hello ${receiptData.userName},\n\nYour order #${receiptData.orderNumber} status has been updated to ${order.status}.\n${statusMessages[order.status] || ''}\nEstimated Delivery: ${deliveryEstimate}\nHub: ${chinaStore}`,
         html,
         attachments: [
           {
@@ -436,7 +447,7 @@ class EmailService {
       const sysRes = await this.dispatchMail({
         to: systemEmails.join(', '),
         subject: `[SYSTEM NOTIFICATION] Order #${receiptData.orderNumber} Status -> ${order.status}`,
-        text: `Order #${receiptData.orderNumber} for ${receiptData.userName} (${targetEmail || 'Guest'}) was updated to status: ${order.status}.`
+        text: `Order #${receiptData.orderNumber} for ${receiptData.userName} (${targetEmail || 'Guest'}) was updated to status: ${order.status}. Delivery Estimate: ${deliveryEstimate}. Hub: ${chinaStore}.`
       })
       sysSent = sysRes.success
     }
@@ -444,7 +455,7 @@ class EmailService {
     this.recordActivity({
       type: 'ORDER_STATUS_UPDATED',
       title: `Order #${receiptData.orderNumber} -> ${order.status}`,
-      message: `Status updated to ${order.status} for ${receiptData.userName} (${targetEmail || 'Customer'}).`,
+      message: `Status updated to ${order.status} for ${receiptData.userName} (${targetEmail || 'Customer'}). Delivery: ${deliveryEstimate}.`,
       userEmail: targetEmail,
       orderNumber: receiptData.orderNumber,
       amount: Number(order.total || 0),
@@ -453,6 +464,231 @@ class EmailService {
     })
 
     return { success: userSent || sysSent }
+  }
+
+  // Send Order Creation notification to Customer & Admin
+  async sendOrderCreationNotification(
+    order: any,
+    customerContext?: {
+      accountEmail?: string
+      shippingEmail?: string
+      firstName?: string
+      lastName?: string
+      fullAddress?: string
+    }
+  ) {
+    const targetEmail = customerContext?.accountEmail || customerContext?.shippingEmail || order.user?.email
+    const customerName = `${customerContext?.firstName || ''} ${customerContext?.lastName || ''}`.trim() || order.user?.firstName || 'Customer'
+    const orderNumber = order.orderNumber || order.order_number
+    const totalFormatted = `$${Number(order.total || 0).toFixed(2)}`
+    const deliveryEstimate = order.estimatedDeliveryTime || order.estimated_delivery_time || '21-35 business days (Express Courier from China Hub)'
+    const chinaStore = order.storeLocation || order.store_location || 'Shenzhen Technology & Electric Mobility Hub, China'
+
+    let userSent = false
+    if (targetEmail) {
+      const userHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #111318; color: #ffffff; padding: 20px 24px;">
+            <span style="background-color: #f59e0b; color: #000000; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase;">Order Placed • ${order.status || 'PENDING'}</span>
+            <h2 style="margin: 10px 0 2px; font-size: 20px; color: #ffffff;">Order Placed Successfully • #${orderNumber}</h2>
+          </div>
+          <div style="padding: 24px; font-size: 14px; line-height: 1.6;">
+            <p>Hello <strong>${customerName}</strong>,</p>
+            <p>Thank you for placing your order with <strong>Midget Micro Drive & Rides</strong>. Your order is registered in our system with status: <strong style="color: #d97706;">${order.status || 'PENDING'}</strong>.</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;">
+              <tr><td style="padding: 6px 0; color: #6b7280; width: 180px;">Order Total:</td><td style="padding: 6px 0; font-weight: bold;">${totalFormatted} USD</td></tr>
+              <tr><td style="padding: 6px 0; color: #6b7280;">Payment Method:</td><td style="padding: 6px 0; font-weight: bold;">${order.paymentMethod || order.payment_method || 'STRIPE'}</td></tr>
+              <tr><td style="padding: 6px 0; color: #6b7280;">Estimated Delivery Time:</td><td style="padding: 6px 0; font-weight: bold; color: #d97706;">${deliveryEstimate}</td></tr>
+              <tr><td style="padding: 6px 0; color: #6b7280;">China Fulfillment Hub:</td><td style="padding: 6px 0;">${chinaStore}</td></tr>
+            </table>
+            <p style="font-size: 12px; color: #6b7280;">We will notify you immediately via email when your shipment is underway. If you need any assistance, contact us at support@midgetdriftcarsandebikes.shop.</p>
+          </div>
+        </div>
+      `
+
+      const userRes = await this.dispatchMail({
+        to: targetEmail,
+        subject: `Order Placed • #${orderNumber} (${totalFormatted}) - Midget Micro Drive & Rides`,
+        text: `Hello ${customerName},\nYour order #${orderNumber} (${totalFormatted}) has been logged in our system.\nStatus: ${order.status || 'PENDING'}\nEstimated Delivery: ${deliveryEstimate}\nChina Hub: ${chinaStore}`,
+        html: userHtml
+      })
+      userSent = userRes.success
+    }
+
+    const { systemEmails } = this.getTransporter()
+    let sysSent = false
+    if (systemEmails.length > 0) {
+      const sysRes = await this.dispatchMail({
+        to: systemEmails.join(', '),
+        subject: `[SYSTEM ALERT] New Order Created • #${orderNumber} (${totalFormatted})`,
+        text: `New order logged: #${orderNumber}\nCustomer: ${customerName} (${targetEmail || 'Guest'})\nTotal: ${totalFormatted}\nStatus: ${order.status || 'PENDING'}\nDelivery: ${deliveryEstimate}\nHub: ${chinaStore}`
+      })
+      sysSent = sysRes.success
+    }
+
+    this.recordActivity({
+      type: 'ORDER_CREATED',
+      title: `Order Created • #${orderNumber}`,
+      message: `${customerName} created order #${orderNumber} for ${totalFormatted} (${order.status || 'PENDING'}).`,
+      userEmail: targetEmail,
+      orderNumber,
+      amount: Number(order.total || 0),
+      emailDispatched: userSent,
+      systemMailDispatched: sysSent
+    })
+
+    return { userEmailSent: userSent, systemEmailSent: sysSent }
+  }
+
+  // Send Pending Order Payment Reminder (> 30 minutes incomplete pay)
+  async sendPendingOrderPaymentReminder(order: any) {
+    const targetEmail = order.user?.email || order.shippingAddress?.email
+    const customerName = order.user?.firstName || order.shippingAddress?.firstName || 'Customer'
+    const orderNumber = order.orderNumber || order.order_number
+    const totalFormatted = `$${Number(order.total || 0).toFixed(2)}`
+    const storeUrl = process.env.PRODUCTION_url || 'https://midgetmicrodrivesandrides.shop'
+
+    let userSent = false
+    if (targetEmail) {
+      const userHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #f59e0b; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #111318; color: #ffffff; padding: 20px 24px;">
+            <span style="background-color: #f59e0b; color: #000000; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase;">Payment Reminder • Incomplete Payment</span>
+            <h2 style="margin: 10px 0 2px; font-size: 20px; color: #f59e0b;">Complete Your Order • #${orderNumber}</h2>
+          </div>
+          <div style="padding: 24px; font-size: 14px; line-height: 1.6;">
+            <p>Hello <strong>${customerName}</strong>,</p>
+            <p>We noticed you initiated order <strong>#${orderNumber}</strong> for <strong>${totalFormatted} USD</strong> over 30 minutes ago, but payment has not yet settled.</p>
+            <p>Your vehicles and reserved inventory remain allocated in our China fulfillment hub in <strong>PENDING</strong> status. For all timed and sells, if a payment is canceled or fails, your order status simply remains PENDING so you can resume whenever convenient.</p>
+            <div style="margin: 24px 0;">
+              <a href="${storeUrl}/checkout" style="background-color: #f59e0b; color: #000000; font-weight: bold; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block;">Resume Checkout & Complete Payment</a>
+            </div>
+            <p style="font-size: 12px; color: #6b7280;">If your payment was interrupted or cancelled, you can easily retry using Credit / Debit Card (Stripe) or PayPal Express. Need help? Reply to this email or chat with our 24/7 team.</p>
+          </div>
+        </div>
+      `
+
+      const res = await this.dispatchMail({
+        to: targetEmail,
+        subject: `Pending Order Payment Reminder: Order #${orderNumber} - Midget Micro Drive & Rides`,
+        text: `Hello ${customerName},\nYour order #${orderNumber} for ${totalFormatted} remains PENDING after 30 minutes. Visit ${storeUrl}/checkout to complete your purchase.`,
+        html: userHtml
+      })
+      userSent = res.success
+    }
+
+    const { systemEmails } = this.getTransporter()
+    let sysSent = false
+    if (systemEmails.length > 0) {
+      const sysRes = await this.dispatchMail({
+        to: systemEmails.join(', '),
+        subject: `[SYSTEM ALERT] Pending Order Over 30 Mins Incomplete • #${orderNumber} (${totalFormatted})`,
+        text: `Order #${orderNumber} for ${customerName} (${targetEmail || 'Guest'}) has been PENDING for > 30 minutes without completed payment. Total: ${totalFormatted}. Reminder email was dispatched to customer.`
+      })
+      sysSent = sysRes.success
+    }
+
+    this.recordActivity({
+      type: 'PENDING_ORDER_REMINDER',
+      title: `Pending 30-Min Payment Reminder • #${orderNumber}`,
+      message: `Incomplete payment reminder dispatched for order #${orderNumber} (${customerName}, ${totalFormatted}). Status remains PENDING.`,
+      userEmail: targetEmail,
+      orderNumber,
+      amount: Number(order.total || 0),
+      emailDispatched: userSent,
+      systemMailDispatched: sysSent
+    })
+
+    return { userEmailSent: userSent, systemEmailSent: sysSent }
+  }
+
+  // Send Delivery Time Updated notification with reason
+  async sendDeliveryTimeUpdatedNotification(order: any, estimatedDeliveryTime: string, reason: string) {
+    const targetEmail = order.user?.email || order.shippingAddress?.email
+    const customerName = order.user?.firstName || order.shippingAddress?.firstName || 'Customer'
+    const orderNumber = order.orderNumber || order.order_number
+    const chinaStore = order.storeLocation || order.store_location || 'Shenzhen Technology & Electric Mobility Hub, China'
+
+    let userSent = false
+    if (targetEmail) {
+      const userHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #111318; color: #ffffff; padding: 20px 24px;">
+            <span style="background-color: #f59e0b; color: #000000; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase;">Delivery Timeline Update</span>
+            <h2 style="margin: 10px 0 2px; font-size: 20px; color: #f59e0b;">Delivery Estimated Date Revised • #${orderNumber}</h2>
+          </div>
+          <div style="padding: 24px; font-size: 14px; line-height: 1.6;">
+            <p>Hello <strong>${customerName}</strong>,</p>
+            <p>Our logistics dispatch department has updated the delivery estimate for your order <strong>#${orderNumber}</strong>.</p>
+            <div style="background-color: #f9fafb; border-left: 4px solid #f59e0b; padding: 14px 18px; margin: 18px 0; border-radius: 4px;">
+              <p style="margin: 0 0 6px; font-size: 14px;"><strong>New Estimated Delivery Time:</strong> <span style="color: #d97706; font-weight: bold;">${estimatedDeliveryTime}</span></p>
+              <p style="margin: 0; font-size: 13px; color: #4b5563;"><strong>Reason for Update:</strong> ${reason}</p>
+            </div>
+            <p style="font-size: 12px; color: #6b7280;">Dispatch Location: ${chinaStore}. Real-time tracking will reflect this adjusted schedule.</p>
+          </div>
+        </div>
+      `
+      const res = await this.dispatchMail({
+        to: targetEmail,
+        subject: `Delivery Time Update for Order #${orderNumber}: ${estimatedDeliveryTime}`,
+        text: `Hello ${customerName},\nYour order #${orderNumber} delivery estimate has been updated to: ${estimatedDeliveryTime}.\nReason: ${reason}\nDispatch Hub: ${chinaStore}`,
+        html: userHtml
+      })
+      userSent = res.success
+    }
+
+    const { systemEmails } = this.getTransporter()
+    let sysSent = false
+    if (systemEmails.length > 0) {
+      const sysRes = await this.dispatchMail({
+        to: systemEmails.join(', '),
+        subject: `[SYSTEM NOTIFICATION] Order #${orderNumber} Delivery Time Updated: ${estimatedDeliveryTime}`,
+        text: `Order #${orderNumber} delivery time updated to: ${estimatedDeliveryTime}\nReason: ${reason}\nCustomer: ${customerName} (${targetEmail || 'Guest'})`
+      })
+      sysSent = sysRes.success
+    }
+
+    this.recordActivity({
+      type: 'DELIVERY_TIME_UPDATED',
+      title: `Delivery Time Updated • #${orderNumber}`,
+      message: `Revised to "${estimatedDeliveryTime}". Reason: ${reason} (${customerName}).`,
+      userEmail: targetEmail,
+      orderNumber,
+      amount: Number(order.total || 0),
+      emailDispatched: userSent,
+      systemMailDispatched: sysSent
+    })
+
+    return { userEmailSent: userSent, systemEmailSent: sysSent }
+  }
+
+  // Record item viewed in activity stream and notify system mail
+  async sendItemViewedNotification(viewData: {
+    productId: string
+    productName: string
+    productSku?: string
+    productPrice?: number
+    userEmail?: string
+    userName?: string
+    ipAddress?: string
+    userAgent?: string
+    referrer?: string
+    storeLocation?: string
+  }) {
+    const viewerLabel = viewData.userEmail || viewData.userName || (viewData.ipAddress ? `Visitor (${viewData.ipAddress})` : 'Guest Visitor')
+    const priceFormatted = viewData.productPrice ? `$${Number(viewData.productPrice).toFixed(2)}` : ''
+
+    const event = this.recordActivity({
+      type: 'ITEM_VIEWED',
+      title: `Product Viewed • ${viewData.productName}`,
+      message: `${viewerLabel} viewed ${viewData.productName} ${viewData.productSku ? `(SKU: ${viewData.productSku})` : ''} ${priceFormatted ? `[${priceFormatted}]` : ''} - Hub: ${viewData.storeLocation || 'Shenzhen, China'}`,
+      userEmail: viewData.userEmail,
+      amount: viewData.productPrice,
+      emailDispatched: false,
+      systemMailDispatched: false
+    })
+
+    return event
   }
 }
 

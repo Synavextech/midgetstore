@@ -42,6 +42,8 @@ export interface Product {
   averageDeliveryTime?: string
   weight?: number
   dimensions?: string
+  storeLocation?: string
+  videos?: string[]
   variants?: ProductVariant[]
   rating?: number
   reviews?: number
@@ -133,6 +135,11 @@ export interface Order {
   shippingAddressId?: string
   billingAddressId?: string
   notes?: string
+  estimatedDeliveryTime?: string
+  deliveryUpdateReason?: string
+  deliveryUpdatedAt?: string
+  storeLocation?: string
+  pendingReminderSentAt?: string
   items: OrderItem[]
   shippingAddress?: Address
   billingAddress?: Address
@@ -159,4 +166,37 @@ export interface PaymentIntent {
   client_secret: string
   amount: number
   currency: string
+}
+
+export interface SystemVisit {
+  id: string
+  productId: string
+  productName?: string
+  productSku?: string
+  productPrice?: number
+  userId?: string | null
+  userEmail?: string | null
+  userName?: string | null
+  ipAddress?: string | null
+  userAgent?: string | null
+  referrer?: string | null
+  storeLocation?: string | null
+  createdAt: string
+}
+
+export interface ChinaStore {
+  id: string
+  code: string
+  name: string
+  city: string
+  province: string
+  district: string
+  address: string
+  postalCode: string
+  phone: string
+  email: string
+  type: string
+  leadTime: string
+  isActive: boolean
+  isPrimary?: boolean
 }

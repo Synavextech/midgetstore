@@ -197,7 +197,7 @@ export const HomePage: React.FC = () => {
           <div className="max-w-4xl space-y-5 md:space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase tracking-widest backdrop-blur-md">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              Nanshan, Shenzhen, Guangdong Province, China
+              China Multi-Store Hubs: Shenzhen • Guangzhou • Yiwu • Shanghai • Ningbo
             </div>
 
             <h1 className="font-anton text-5xl sm:text-7xl lg:text-8xl text-white leading-none tracking-tight uppercase">

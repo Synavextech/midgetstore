@@ -22,6 +22,9 @@ import adminRoutes from './routes/admin.js'
 import eventsRoutes from './routes/events.js'
 import paymentRoutes from './routes/payments.js'
 import cartRoutes from './routes/cart.js'
+import storesRoutes from './routes/stores.js'
+import { databaseService } from './services/databaseService.js'
+import { emailService } from './utils/emailService.js'
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js'
@@ -126,6 +129,7 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/events', eventsRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/cart', cartRoutes)
+app.use('/api/stores', storesRoutes)
 
 // ==========================================
 // Static File Serving (Excludes /api and /health)
@@ -224,9 +228,37 @@ process.on('SIGTERM', () => {
   process.exit(0)
 })
 
+// Background checker for pending orders with over 30 minutes incomplete pay
+function initPendingOrdersChecker() {
+  const checkPendingOrders = async () => {
+    try {
+      const pendingOrders = await databaseService.findPendingOrdersOver30Minutes()
+      if (pendingOrders && pendingOrders.length > 0) {
+        console.log(`⏰ Found ${pendingOrders.length} order(s) pending > 30 minutes. Dispatching payment reminders...`)
+        for (const order of pendingOrders) {
+          try {
+            await emailService.sendPendingOrderPaymentReminder(order)
+            await databaseService.markPendingReminderSent(order.id)
+            console.log(`✅ 30-min pending payment reminder dispatched for order #${order.orderNumber}`)
+          } catch (orderErr) {
+            console.error(`Error sending pending reminder for order ${order.id}:`, orderErr)
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('Pending order reminder routine check notice:', err.message)
+    }
+  }
+
+  // Check on startup after 10 seconds, then periodically every 5 minutes
+  setTimeout(checkPendingOrders, 10000)
+  setInterval(checkPendingOrders, 5 * 60 * 1000)
+}
+
 // Start server
 async function startServer() {
   await connectDatabase()
+  initPendingOrdersChecker()
 
   app.listen(PORT, () => {
     console.log(`🚀 Midget Micro Drive & Rides server is running on port ${PORT}`)

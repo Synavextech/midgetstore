@@ -11,6 +11,8 @@ import {
   deleteProduct,
   getOrders,
   updateOrderStatus,
+  updateOrderDeliveryTime,
+  getSystemVisits,
   getUsers,
   updateUserStatus,
   getAnalytics,
@@ -108,6 +110,10 @@ router.delete('/products/:id', deleteProduct)
 router.get('/orders', getOrders)
 router.get('/orders/:id/receipt.pdf', downloadAdminOrderReceiptPdf)
 router.put('/orders/:id/status', updateOrderStatus)
+router.put('/orders/:id/delivery-time', updateOrderDeliveryTime)
+
+// System Visits & Item Views tracking (with profile details)
+router.get('/visits', getSystemVisits)
 
 // Real-time system activity notifications
 router.get('/notifications', getNotifications)

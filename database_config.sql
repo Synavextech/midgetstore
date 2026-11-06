@@ -1,6 +1,6 @@
 -- =====================================================
--- Trendstore - Supabase Database Configuration & Migration Script
--- Production-Ready Schema with Full RLS & USD Store Catalog
+-- Midget Micro Drives & Rides - Supabase Database Configuration & Initialization Script
+-- Production-Ready Schema with Full RLS & USD Motorsport Catalog
 -- =====================================================
 -- Safe to execute directly in the Supabase SQL Editor.
 
@@ -36,12 +36,14 @@ CREATE TABLE IF NOT EXISTS public.products (
     sku TEXT UNIQUE NOT NULL,
     stock INTEGER DEFAULT 0,
     images TEXT[] DEFAULT '{}',
+    videos TEXT[] DEFAULT '{}',
     category TEXT NOT NULL,
     brand TEXT,
     is_active BOOLEAN DEFAULT true,
     is_new BOOLEAN DEFAULT false,
     shipping_required BOOLEAN DEFAULT true,
-    average_delivery_time TEXT DEFAULT '2-4 business days',
+    average_delivery_time TEXT DEFAULT '21-35 business days',
+    store_location TEXT DEFAULT 'Shenzhen Technology & Electric Mobility Hub, China',
     weight DECIMAL(8,2),
     dimensions TEXT,
     rating DECIMAL(3,2) DEFAULT 4.90,
@@ -113,6 +115,11 @@ CREATE TABLE IF NOT EXISTS public.orders (
     payment_id TEXT,
     shipping_address_id TEXT REFERENCES public.addresses(id),
     billing_address_id TEXT REFERENCES public.addresses(id),
+    estimated_delivery_time TEXT DEFAULT '21-35 business days (Express Courier from China Hub)',
+    delivery_update_reason TEXT,
+    delivery_updated_at TIMESTAMPTZ,
+    store_location TEXT DEFAULT 'Shenzhen Technology & Electric Mobility Hub, China',
+    pending_reminder_sent_at TIMESTAMPTZ,
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -126,6 +133,58 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     quantity INTEGER NOT NULL,
     price DECIMAL(10,2) NOT NULL,
     total DECIMAL(10,2) NOT NULL
+);
+
+-- System Visits & Product Views Table (Item viewing audit log)
+CREATE TABLE IF NOT EXISTS public.product_views (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    product_id TEXT REFERENCES public.products(id) ON DELETE CASCADE,
+    product_name TEXT NOT NULL,
+    product_sku TEXT,
+    product_price DECIMAL(10,2),
+    user_id TEXT REFERENCES public.users(id) ON DELETE SET NULL,
+    user_email TEXT,
+    user_name TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    referrer TEXT,
+    store_location TEXT DEFAULT 'Shenzhen Technology & Electric Mobility Hub, China',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- China Multi-Store Hubs Table (Fulfillment & showroom network)
+CREATE TABLE IF NOT EXISTS public.stores (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    city TEXT NOT NULL,
+    province TEXT NOT NULL,
+    country TEXT NOT NULL DEFAULT 'China',
+    address TEXT NOT NULL,
+    district TEXT,
+    postal_code TEXT,
+    phone TEXT,
+    email TEXT,
+    hub_type TEXT NOT NULL,
+    is_headquarters BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    display_order INTEGER DEFAULT 1,
+    specialties TEXT[] DEFAULT '{}',
+    dispatch_lead_time TEXT DEFAULT '24-48 hours',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Real-Time System Activity & Event Stream Table
+CREATE TABLE IF NOT EXISTS public.system_events (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    data JSONB DEFAULT '{}'::jsonb,
+    user_id TEXT,
+    user_email TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 );
 
 -- Events Table
@@ -179,6 +238,13 @@ CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_product_views_product_id ON public.product_views(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_views_user_id ON public.product_views(user_id);
+CREATE INDEX IF NOT EXISTS idx_product_views_created_at ON public.product_views(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_stores_city ON public.stores(city);
+CREATE INDEX IF NOT EXISTS idx_stores_active ON public.stores(is_active);
+CREATE INDEX IF NOT EXISTS idx_system_events_type ON public.system_events(type);
+CREATE INDEX IF NOT EXISTS idx_system_events_created_at ON public.system_events(created_at DESC);
 
 -- =====================================================
 -- 4. ROW LEVEL SECURITY (RLS) POLICIES
@@ -192,6 +258,9 @@ ALTER TABLE public.cart_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_events ENABLE ROW LEVEL SECURITY;
 
 -- Products: Public read active items, Admins manage all
 DROP POLICY IF EXISTS "Public can view active products" ON public.products;
@@ -295,6 +364,45 @@ CREATE POLICY "Users can view their own order items" ON public.order_items
         )
     );
 
+-- Product Views: Anyone can insert view logs, Admins can view
+DROP POLICY IF EXISTS "Anyone can insert product views" ON public.product_views;
+CREATE POLICY "Anyone can insert product views" ON public.product_views
+    FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Admins can view product views" ON public.product_views;
+CREATE POLICY "Admins can view product views" ON public.product_views
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE id = auth.uid()::text AND role = 'ADMIN'
+        )
+        OR auth.role() = 'service_role'
+    );
+
+-- Stores: Public can view active stores, Admins manage all
+DROP POLICY IF EXISTS "Public can view active stores" ON public.stores;
+CREATE POLICY "Public can view active stores" ON public.stores
+    FOR SELECT USING (is_active = true);
+
+DROP POLICY IF EXISTS "Admins can manage stores" ON public.stores;
+CREATE POLICY "Admins can manage stores" ON public.stores
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE id = auth.uid()::text AND role = 'ADMIN'
+        )
+        OR auth.role() = 'service_role'
+    );
+
+-- System Events: Public can view and log activity events
+DROP POLICY IF EXISTS "Public can view system events" ON public.system_events;
+CREATE POLICY "Public can view system events" ON public.system_events
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public can insert system events" ON public.system_events;
+CREATE POLICY "Public can insert system events" ON public.system_events
+    FOR INSERT WITH CHECK (true);
+
 -- =====================================================
 -- 5. AUTOMATED TIMESTAMP & TRIGGER FUNCTIONS
 -- =====================================================
@@ -331,20 +439,133 @@ CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON public.orders
 -- 6. PRODUCTION SEED DATA (USD STORE CATALOG)
 -- =====================================================
 
--- Admin User (default password: 'password', or configured via scripts/create-admin.js)
+-- Admin User (configured via create_admin.js or default seed)
 INSERT INTO public.users (id, email, password, first_name, last_name, role, is_active)
 VALUES (
-    'admin_trendstore_001',
-    'admin@trendstore.com',
+    'b518b03e-b64d-4939-848f-176d9d0ca16b',
+    'admn@microdrivesmanager.shop',
     '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
     'Admin',
-    'Trendstore',
+    'Manager',
     'ADMIN',
     true
 )
 ON CONFLICT (email) DO UPDATE SET
     role = 'ADMIN',
     is_active = true,
+    updated_at = NOW();
+
+-- China Multi-Store Hubs Seed
+INSERT INTO public.stores (
+    id, name, city, province, country, address, district, postal_code,
+    phone, email, hub_type, is_headquarters, is_active, display_order,
+    specialties, dispatch_lead_time
+) VALUES
+(
+    'store_shenzhen_hq',
+    'Shenzhen Technology & Electric Mobility Hub',
+    'Shenzhen',
+    'Guangdong Province',
+    'China',
+    'Building 4, High-Tech Industrial Park South, Yuehai Subdistrict',
+    'Nanshan District',
+    '518057',
+    '+86 755 8670 9188',
+    'shenzhen.hub@microdrivesmanager.shop',
+    'headquarters_and_fulfillment',
+    true,
+    true,
+    1,
+    ARRAY['Brushless Powertrains', 'Drift Trikes', 'BMS Testing', 'Global Air Freight'],
+    '12-24 hours'
+),
+(
+    'store_guangzhou_mfg',
+    'Guangzhou Motor & Chassis Integration Center',
+    'Guangzhou',
+    'Guangdong Province',
+    'China',
+    'No. 88 Huadu Advanced Manufacturing Industrial Zone',
+    'Huadu District',
+    '510800',
+    '+86 20 8697 5320',
+    'guangzhou.hub@microdrivesmanager.shop',
+    'assembly_and_customization',
+    false,
+    true,
+    2,
+    ARRAY['Heavy Frame Fabrication', 'Custom Suspension', 'Motor Rewinding', 'Export QC'],
+    '24-48 hours'
+),
+(
+    'store_yiwu_parts',
+    'Yiwu Fast-Dispatch & Accessories Center',
+    'Yiwu',
+    'Zhejiang Province',
+    'China',
+    'Block B, Yiwu International Logistics Park, Chouzhou North Road',
+    'Choucheng Subdistrict',
+    '322000',
+    '+86 579 8558 7411',
+    'yiwu.hub@microdrivesmanager.shop',
+    'parts_and_accessories_dispatch',
+    false,
+    true,
+    3,
+    ARRAY['Replacement Batteries', 'Slick Drift Sleeves', 'LED Kits', 'Rapid Courier'],
+    '12-24 hours'
+),
+(
+    'store_shanghai_rnd',
+    'Shanghai Performance Engineering & QC Hub',
+    'Shanghai',
+    'Shanghai Municipality',
+    'China',
+    'Building 12, Pudong Jinqiao Export Processing Zone',
+    'Pudong New Area',
+    '201206',
+    '+86 21 5834 6629',
+    'shanghai.hub@microdrivesmanager.shop',
+    'quality_control_and_testing',
+    false,
+    true,
+    4,
+    ARRAY['Dyno Stress Testing', 'Telemetry Calibration', 'High-Voltage Safety Certification'],
+    '24-36 hours'
+),
+(
+    'store_ningbo_marine',
+    'Ningbo Marine Port & Heavy Freight Terminal',
+    'Ningbo',
+    'Zhejiang Province',
+    'China',
+    'No. 168 Baoguan Road, Beilun Deep-Water Port Logistics Center',
+    'Beilun District',
+    '315800',
+    '+86 574 8678 4402',
+    'ningbo.hub@microdrivesmanager.shop',
+    'container_freight_and_sea_shipping',
+    false,
+    true,
+    5,
+    ARRAY['Full-Rig Crating', 'Ocean Cargo Consolidation', 'Bulk Palletized Freight'],
+    '48-72 hours'
+)
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    city = EXCLUDED.city,
+    province = EXCLUDED.province,
+    address = EXCLUDED.address,
+    district = EXCLUDED.district,
+    postal_code = EXCLUDED.postal_code,
+    phone = EXCLUDED.phone,
+    email = EXCLUDED.email,
+    hub_type = EXCLUDED.hub_type,
+    is_headquarters = EXCLUDED.is_headquarters,
+    is_active = EXCLUDED.is_active,
+    display_order = EXCLUDED.display_order,
+    specialties = EXCLUDED.specialties,
+    dispatch_lead_time = EXCLUDED.dispatch_lead_time,
     updated_at = NOW();
 
 -- Curated USD Electric Drift Trikes, Dirt Bikes, and Performance Gear
@@ -493,7 +714,7 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 
 DO $$
 BEGIN
-    RAISE NOTICE 'Trendstore USD database configuration applied successfully!';
-    RAISE NOTICE 'Tables active: users, products, product_variants, carts, cart_items, addresses, orders, order_items';
+    RAISE NOTICE 'Midget Micro Drives & Rides USD database configuration applied successfully!';
+    RAISE NOTICE 'Tables active: users, products, product_variants, carts, cart_items, addresses, orders, order_items, product_views, stores, system_events';
     RAISE NOTICE 'Store Currency: USD ($)';
 END $$;

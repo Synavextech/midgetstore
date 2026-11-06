@@ -3,19 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt, { Secret } from 'jsonwebtoken'
 import { databaseService } from '../services/databaseService.js'
 import { emailService } from '../utils/emailService.js'
-
-// Extend Request type to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string
-        email: string
-        role: string
-      }
-    }
-  }
-}
+import { AuthUser } from '../middleware/auth.js'
 
 // Generate JWT token
 const generateToken = (userId: string, email: string, role: string): string => {

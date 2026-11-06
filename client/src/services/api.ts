@@ -112,6 +112,14 @@ export const productApi = {
       method: 'DELETE',
     })
   },
+
+  // Track product view beacon
+  trackView: async (id: string, data?: any): Promise<ApiResponse<any>> => {
+    return apiRequest(`/products/${id}/view`, {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
+    })
+  },
 }
 
 // Cart API functions
@@ -395,10 +403,42 @@ export const adminApi = {
   getNotifications: async (): Promise<ApiResponse<any[]>> => {
     return apiRequest('/admin/notifications')
   },
+
+  // Update order delivery time with reason (admin)
+  updateOrderDeliveryTime: async (orderId: string, data: { estimatedDeliveryTime: string; reason: string }): Promise<ApiResponse<any>> => {
+    return apiRequest(`/admin/orders/${orderId}/delivery-time`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  },
+
+  // Get system visits & item views records (admin)
+  getSystemVisits: async (params?: { page?: number; limit?: number }): Promise<ApiResponse<any[]>> => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+    const queryString = searchParams.toString()
+    return apiRequest(`/admin/visits${queryString ? `?${queryString}` : ''}`)
+  },
+}
+
+// Stores API functions (China Multiple Store Network)
+export const storeApi = {
+  getStores: async (): Promise<ApiResponse<any[]>> => {
+    return apiRequest('/stores')
+  },
 }
 
 // Payment API functions (Stripe Card & PayPal only)
 export const paymentApi = {
+  // Get Stripe public configuration for Elements
+  getStripeConfig: async (): Promise<ApiResponse<{
+    publishableKey: string
+    currency: string
+  }>> => {
+    return apiRequest('/payments/stripe/config')
+  },
+
   // Create Stripe payment intent (USD)
   createStripePaymentIntent: async (amount: number): Promise<ApiResponse<{
     clientSecret: string

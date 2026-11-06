@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useProducts } from '../contexts/ProductContext'
 import { useCart } from '../contexts/CartContext'
+import { productApi } from '../services/api'
 
 // Safe URL encoder for filenames with spaces or special characters
 const getSafeMediaUrl = (url?: string) => {
@@ -58,6 +59,12 @@ export const ProductDetailPage = () => {
       } else if (typeof fetchProduct === 'function') {
         fetchProduct(id)
       }
+
+      // Track item viewing event with visitor profile details
+      productApi.trackView(id, {
+        referrer: typeof document !== 'undefined' ? document.referrer : '',
+        url: typeof window !== 'undefined' ? window.location.href : ''
+      }).catch(() => {})
     }
     // Reset selected image when navigating to new product
     setSelectedImageIndex(0)
@@ -120,7 +127,7 @@ SKU: ${currentProduct.sku}
 Price: $${currentProduct.price}
 Selected Color: ${selectedVariant}
 Warranty: 1 Year Manufacturer Warranty Included
-Dispatch: Nanshan, Shenzhen, Guangdong Province, China Warehouse (Fast Delivery 21 -35 Days)
+Dispatch: ${currentProduct.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China'} (Fast Delivery 21 - 35 Days)
 
 OVERVIEW:
 ${currentProduct.description || 'Precision engineered micro ride built for performance, reliability, and extreme adventure.'}
@@ -304,7 +311,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
                     className={`relative aspect-square bg-white dark:bg-[#15171d] rounded-lg border-2 overflow-hidden transition-all ${selectedImageIndex === index
-                      ? 'border-lime-500 dark:border-lime-400 ring-2 ring-lime-500/20 shadow-md scale-[1.02]'
+                      ? 'border-amber-500 dark:border-amber-400 ring-2 ring-amber-500/20 shadow-md scale-[1.02]'
                       : 'border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30 opacity-75 hover:opacity-100'
                       }`}
                   >
@@ -336,7 +343,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
 
             {/* Tagline with vertical accent bar */}
             <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">
-              <span className="w-1 h-5 bg-lime-500 dark:bg-lime-400 rounded-full inline-block flex-shrink-0"></span>
+              <span className="w-1 h-5 bg-amber-500 dark:bg-amber-400 rounded-full inline-block flex-shrink-0"></span>
               <span className="font-semibold">{getProductTagline()}</span>
             </div>
 
@@ -364,7 +371,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
 
             {/* Huge Price Display matching screenshot */}
             <div className="flex items-baseline gap-4 pt-1">
-              <div className="text-4xl sm:text-5xl font-black text-lime-500 dark:text-lime-400 font-anton tracking-tight">
+              <div className="text-4xl sm:text-5xl font-black text-amber-500 dark:text-amber-400 font-anton tracking-tight">
                 {formatPrice(currentProduct.price)}
               </div>
               {currentProduct.originalPrice && currentProduct.originalPrice > currentProduct.price && (
@@ -379,7 +386,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
               <div className="font-bold flex items-center gap-2 text-gray-800 dark:text-gray-200">
                 <span className="uppercase text-gray-500 dark:text-gray-400 font-extrabold tracking-wider">SHIPPING:</span>
                 <span className="line-through text-gray-400">$220</span>
-                <span className="text-lime-500 dark:text-lime-400 font-black uppercase">FREE</span>
+                <span className="text-amber-500 dark:text-amber-400 font-black uppercase">FREE</span>
                 <span>• delivery in {currentProduct.averageDeliveryTime || '12–20 days'}</span>
               </div>
               <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
@@ -399,7 +406,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
                     key={col}
                     onClick={() => setSelectedVariant(col)}
                     className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider border-2 transition-all ${selectedVariant.toLowerCase() === col.toLowerCase()
-                      ? 'bg-neutral-900 text-white border-lime-500 dark:border-lime-400 shadow-md ring-1 ring-lime-400/30'
+                      ? 'bg-neutral-900 text-white border-amber-500 dark:border-amber-400 shadow-md ring-1 ring-amber-400/30'
                       : 'bg-white dark:bg-[#1a1d24] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'
                       }`}
                   >
@@ -435,11 +442,11 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
 
             {/* Action Buttons Row matching reference screenshot: BUY NOW, ADD TO CART, SAVE */}
             <div className="flex flex-col sm:flex-row items-stretch gap-3 pt-2">
-              {/* BUY NOW (Lime green/Amber filled) */}
+              {/* BUY NOW (Amber filled) */}
               <button
                 onClick={handleBuyNow}
                 disabled={currentProduct.stock <= 0}
-                className="flex-1 bg-lime-500 hover:bg-lime-400 text-black font-black uppercase tracking-wider py-4 px-6 rounded-xl shadow-lg shadow-lime-500/20 disabled:cursor-not-allowed transition-all text-xs sm:text-sm text-center flex items-center justify-center gap-2 active:scale-[0.98]"
+                className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-wider py-4 px-6 rounded-xl shadow-lg shadow-amber-500/20 disabled:cursor-not-allowed transition-all text-xs sm:text-sm text-center flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 <span>Buy Now</span>
               </button>
@@ -471,13 +478,13 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
             {/* Download Product Information Card matching reference screenshot */}
             <div
               onClick={handleDownloadSpecs}
-              className="group cursor-pointer bg-white dark:bg-[#16181e] border border-gray-200 dark:border-white/10 hover:border-lime-500/50 dark:hover:border-lime-400/50 rounded-xl p-4 flex items-center gap-3.5 transition-all shadow-sm hover:shadow-md"
+              className="group cursor-pointer bg-white dark:bg-[#16181e] border border-gray-200 dark:border-white/10 hover:border-amber-500/50 dark:hover:border-amber-400/50 rounded-xl p-4 flex items-center gap-3.5 transition-all shadow-sm hover:shadow-md"
             >
-              <div className="w-10 h-10 rounded-lg bg-lime-500/10 border border-lime-500/20 flex items-center justify-center text-lime-600 dark:text-lime-400 flex-shrink-0 group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform">
                 <Download className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white group-hover:text-lime-500 dark:group-hover:text-lime-400 transition-colors">
+                <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors">
                   Download Product Information
                 </h4>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
@@ -543,7 +550,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
               </div>
               <div className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                <span>Nanshan, Shenzhen, Guangdong Province, China Warehouse Express Dispatch</span>
+                <span>{currentProduct.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China Warehouse Express Dispatch'}</span>
               </div>
             </div>
 
@@ -557,7 +564,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
           {/* Header */}
           <div className="flex items-center justify-between text-white max-w-6xl w-full mx-auto pb-3 border-b border-white/10">
             <div>
-              <h3 className="font-anton text-lg sm:text-xl uppercase tracking-wider text-lime-400">
+              <h3 className="font-anton text-lg sm:text-xl uppercase tracking-wider text-amber-400">
                 {currentProduct.name}
               </h3>
               <p className="text-xs text-gray-400">
@@ -566,7 +573,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
             </div>
             <button
               onClick={() => setIsLightboxOpen(false)}
-              className="p-2 rounded-full bg-white/10 hover:bg-lime-500 hover:text-black transition-colors"
+              className="p-2 rounded-full bg-white/10 hover:bg-amber-500 hover:text-black transition-colors"
               title="Close (Esc)"
             >
               <X className="w-6 h-6" />
@@ -579,7 +586,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
             {mediaList.length > 1 && (
               <button
                 onClick={() => setLightboxIndex((prev) => (prev - 1 + mediaList.length) % mediaList.length)}
-                className="absolute left-2 sm:left-4 z-10 p-3 rounded-full bg-black/60 hover:bg-lime-500 hover:text-black text-white transition-all backdrop-blur-sm"
+                className="absolute left-2 sm:left-4 z-10 p-3 rounded-full bg-black/60 hover:bg-amber-500 hover:text-black text-white transition-all backdrop-blur-sm"
                 title="Previous (Left Arrow)"
               >
                 <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
@@ -614,7 +621,7 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
             {mediaList.length > 1 && (
               <button
                 onClick={() => setLightboxIndex((prev) => (prev + 1) % mediaList.length)}
-                className="absolute right-2 sm:right-4 z-10 p-3 rounded-full bg-black/60 hover:bg-lime-500 hover:text-black text-white transition-all backdrop-blur-sm"
+                className="absolute right-2 sm:right-4 z-10 p-3 rounded-full bg-black/60 hover:bg-amber-500 hover:text-black text-white transition-all backdrop-blur-sm"
                 title="Next (Right Arrow)"
               >
                 <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
@@ -631,8 +638,8 @@ WhatsApp Support: +1 (909) 308-8313 (https://wa.me/19093088313)
                     key={idx}
                     onClick={() => setLightboxIndex(idx)}
                     className={`relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all ${lightboxIndex === idx
-                      ? 'border-lime-500 ring-2 ring-lime-500 scale-105'
-                      : 'border-white/20 opacity-60 hover:opacity-100 hover:border-lime-500/50'
+                      ? 'border-amber-500 ring-2 ring-amber-500 scale-105'
+                      : 'border-white/20 opacity-60 hover:opacity-100 hover:border-amber-500/50'
                       }`}
                   >
                     {isVideoMedia(thumb) ? (

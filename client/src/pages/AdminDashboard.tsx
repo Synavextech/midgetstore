@@ -16,20 +16,32 @@ import {
   FileText,
   Printer,
   Copy,
-  Check
+  Check,
+  Eye,
+  Clock,
+  MapPin,
+  Play,
+  Send
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { adminApi } from '../services/api'
 import { Product, Order, User } from '../types'
+import { CHINA_STORES } from '../utils/stores'
 import {
   OrderReceiptData,
   generateReceiptText,
   downloadReceiptPdf
 } from '../utils/receiptPdf'
 
+const isVideoMedia = (url?: string) => {
+  if (!url) return false
+  const lower = url.toLowerCase()
+  return lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.endsWith('.ogg')
+}
+
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'users'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'users' | 'visits'>('overview')
 
   // Dashboard Stats
   const [stats, setStats] = useState<{
@@ -50,6 +62,17 @@ export const AdminDashboard: React.FC = () => {
   const [productsList, setProductsList] = useState<Product[]>([])
   const [ordersList, setOrdersList] = useState<Order[]>([])
   const [usersList, setUsersList] = useState<User[]>([])
+
+  // Delivery Time Adjustment Modal State
+  const [editingDeliveryOrder, setEditingDeliveryOrder] = useState<any | null>(null)
+  const [newDeliveryTime, setNewDeliveryTime] = useState('')
+  const [deliveryReason, setDeliveryReason] = useState('')
+  const [isSavingDelivery, setIsSavingDelivery] = useState(false)
+
+  // System Visits / Item Views State
+  const [visitsList, setVisitsList] = useState<any[]>([])
+  const [visitsTotal, setVisitsTotal] = useState<number>(0)
+  const [isVisitsLoading, setIsVisitsLoading] = useState(false)
 
   // Loading states
   const [isLoading, setIsLoading] = useState(true)
@@ -75,7 +98,8 @@ export const AdminDashboard: React.FC = () => {
     isNew: true,
     topSpeed: '60 km/h',
     range: '70 km',
-    deliveryTime: '21 business days (Nanshan, Shenzhen, Guangdong Province, China Warehouse)',
+    deliveryTime: '21-35 business days (Express Courier from China Hub)',
+    storeLocation: 'Shenzhen Technology & Electric Mobility Hub, China'
   })
 
   // Order status filter
@@ -108,7 +132,63 @@ export const AdminDashboard: React.FC = () => {
     if (activeTab === 'products') fetchProducts()
     if (activeTab === 'orders') fetchOrders()
     if (activeTab === 'users') fetchUsers()
+    if (activeTab === 'visits') fetchVisits()
   }, [activeTab, orderFilter])
+
+  const fetchVisits = async () => {
+    try {
+      setIsVisitsLoading(true)
+      const res = await adminApi.getSystemVisits({ page: 1, limit: 100 })
+      if (res.success && Array.isArray(res.data)) {
+        setVisitsList(res.data)
+        setVisitsTotal((res.pagination as any)?.totalVisits || res.data.length)
+      }
+    } catch (err: any) {
+      notify('error', err.message || 'Failed to load system visits')
+    } finally {
+      setIsVisitsLoading(false)
+    }
+  }
+
+  const handleOpenDeliveryModal = (order: any) => {
+    setEditingDeliveryOrder(order)
+    setNewDeliveryTime(order.estimatedDeliveryTime || '21-35 business days (Express Courier from China Hub)')
+    setDeliveryReason('')
+  }
+
+  const handleSaveDeliveryTime = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingDeliveryOrder) return
+    if (!newDeliveryTime.trim()) {
+      notify('error', 'Please enter a valid estimated delivery time')
+      return
+    }
+    if (!deliveryReason.trim()) {
+      notify('error', 'Please provide a reason for the delivery time update')
+      return
+    }
+
+    try {
+      setIsSavingDelivery(true)
+      const res = await adminApi.updateOrderDeliveryTime(editingDeliveryOrder.id, {
+        estimatedDeliveryTime: newDeliveryTime.trim(),
+        reason: deliveryReason.trim()
+      })
+
+      if (res.success) {
+        notify('success', `Delivery estimate updated to "${newDeliveryTime.trim()}". Real-time email and alert dispatched.`)
+        setEditingDeliveryOrder(null)
+        fetchOrders()
+        fetchNotifications()
+      } else {
+        notify('error', res.error || 'Failed to update delivery time')
+      }
+    } catch (err: any) {
+      notify('error', err.message || 'Failed to update delivery time')
+    } finally {
+      setIsSavingDelivery(false)
+    }
+  }
 
   const notify = (type: 'success' | 'error', text: string) => {
     setActionMessage({ type, text })
@@ -528,6 +608,7 @@ export const AdminDashboard: React.FC = () => {
             { id: 'overview', label: 'Store Overview', icon: TrendingUp },
             { id: 'products', label: 'Fleet Products', icon: Package },
             { id: 'orders', label: 'Orders & Settlements', icon: ShoppingBag },
+            { id: 'visits', label: 'Visits & Item Views', icon: Eye },
             { id: 'users', label: 'User Accounts', icon: Users },
           ].map((tab) => {
             const Icon = tab.icon
@@ -842,6 +923,7 @@ export const AdminDashboard: React.FC = () => {
                     <th className="px-6 py-3.5">Customer</th>
                     <th className="px-6 py-3.5">Total Amount</th>
                     <th className="px-6 py-3.5">Method</th>
+                    <th className="px-6 py-3.5">Delivery Timeline & Reason</th>
                     <th className="px-6 py-3.5">Status Update</th>
                     <th className="px-6 py-3.5 text-right">Purchase Receipt</th>
                   </tr>
@@ -849,7 +931,7 @@ export const AdminDashboard: React.FC = () => {
                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                   {ordersList.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
+                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                         No orders recorded yet.
                       </td>
                     </tr>
@@ -878,6 +960,27 @@ export const AdminDashboard: React.FC = () => {
                           <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
                             {ord.paymentMethod || 'STRIPE'}
                           </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                              <span>{ord.estimatedDeliveryTime || '21-35 business days'}</span>
+                            </p>
+                            {ord.deliveryUpdateReason && (
+                              <p className="text-[10px] text-amber-500 dark:text-amber-400 font-medium italic">
+                                Reason: {ord.deliveryUpdateReason}
+                              </p>
+                            )}
+                            <button
+                              onClick={() => handleOpenDeliveryModal(ord)}
+                              className="inline-flex items-center gap-1 text-[10px] text-amber-500 hover:text-amber-400 underline font-bold cursor-pointer"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                              <span>Edit Delivery Time</span>
+                            </button>
+                          </div>
                         </td>
 
                         <td className="px-6 py-4">
@@ -923,7 +1026,103 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Tab 4: USERS MANAGEMENT */}
+        {/* Tab 4: SYSTEM VISITS & ITEM VIEWS */}
+        {activeTab === 'visits' && (
+          <div className="bg-white dark:bg-[#16181e] rounded-2xl shadow-sm border border-gray-200 dark:border-neutral-800 overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black uppercase text-gray-900 dark:text-white font-anton">
+                  System Visits & Item Views
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Real-time audit log of product viewings with customer profiles, IP address, device, and referrer.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono bg-amber-500/20 text-amber-500 font-bold px-3 py-1 rounded-lg">
+                  {visitsTotal} total view events
+                </span>
+                <button
+                  onClick={fetchVisits}
+                  className="p-2 bg-gray-100 dark:bg-white/5 rounded-lg hover:text-amber-500 transition-colors cursor-pointer"
+                  title="Refresh visits"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isVisitsLoading ? 'animate-spin text-amber-500' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 dark:bg-[#1f222a] text-gray-400 text-[11px] uppercase tracking-wider font-bold">
+                  <tr>
+                    <th className="px-6 py-3.5">Timestamp</th>
+                    <th className="px-6 py-3.5">Product Viewed</th>
+                    <th className="px-6 py-3.5">Visitor / User Profile</th>
+                    <th className="px-6 py-3.5">Network & Device Details</th>
+                    <th className="px-6 py-3.5">Referrer / Hub</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
+                  {visitsList.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center text-gray-400">
+                        {isVisitsLoading ? 'Loading visits...' : 'No item viewing events logged yet.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    visitsList.map((v: any) => (
+                      <tr key={v.id} className="hover:bg-gray-50/60 dark:hover:bg-[#191b22] transition-colors">
+                        <td className="px-6 py-4">
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">
+                            {new Date(v.createdAt).toLocaleDateString()}
+                          </p>
+                          <span className="text-[11px] text-gray-500 font-mono">
+                            {new Date(v.createdAt).toLocaleTimeString()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-gray-900 dark:text-white text-xs">{v.productName || 'Product ID: ' + v.productId}</p>
+                          <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
+                            {v.productSku && <span>SKU: {v.productSku}</span>}
+                            {v.productPrice > 0 && <span className="text-amber-500 font-bold">${v.productPrice}</span>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-xs font-semibold text-gray-900 dark:text-white">
+                            {v.userName || (v.userEmail ? v.userEmail : 'Guest Visitor')}
+                          </p>
+                          <span className="text-[11px] text-gray-500">
+                            {v.userEmail || (v.userId ? `User ID: ${v.userId}` : 'Unauthenticated visitor')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="font-mono text-xs text-gray-700 dark:text-gray-300">
+                            IP: {v.ipAddress || 'Direct / Internal'}
+                          </p>
+                          <p className="text-[10px] text-gray-500 truncate max-w-xs" title={v.userAgent || ''}>
+                            {v.userAgent ? v.userAgent.substring(0, 50) + '...' : 'Unknown Browser'}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block truncate max-w-xs" title={v.referrer || 'Direct'}>
+                            {v.referrer || 'Direct / Internal Navigation'}
+                          </span>
+                          <span className="text-[10px] text-amber-500 font-bold flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3" />
+                            {v.storeLocation || 'China Hub'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 5: USERS MANAGEMENT */}
         {activeTab === 'users' && (
           <div className="bg-white dark:bg-[#16181e] rounded-2xl shadow-sm border border-gray-200 dark:border-neutral-800 overflow-hidden">
             <div className="p-6 border-b border-gray-200 dark:border-neutral-800">
@@ -999,6 +1198,124 @@ export const AdminDashboard: React.FC = () => {
         )}
       </div>
 
+      {/* Edit Order Delivery Estimate Modal */}
+      {editingDeliveryOrder && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !isSavingDelivery && setEditingDeliveryOrder(null)} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white dark:bg-[#16181e] text-gray-900 dark:text-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-gray-200 dark:border-neutral-800">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-neutral-800 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-gray-900 dark:text-white font-anton uppercase tracking-wide">
+                      Update Delivery Estimate
+                    </h3>
+                    <p className="text-[11px] text-gray-400">
+                      Order #{editingDeliveryOrder.id.slice(0, 8)} • Hub: {editingDeliveryOrder.storeLocation || 'China Hub'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => !isSavingDelivery && setEditingDeliveryOrder(null)}
+                  disabled={isSavingDelivery}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveDeliveryTime} className="space-y-4">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-600 dark:text-amber-400">
+                  <p className="font-bold flex items-center gap-1.5 mb-1">
+                    <Send className="w-3.5 h-3.5" />
+                    Real-Time Customer Email & Activity Dispatch
+                  </p>
+                  <p className="text-[11px] opacity-90 leading-relaxed">
+                    Saving this will update the settled database record, broadcast a live SSE notification, and send an official update email to the customer with this reason.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Estimated Delivery Time / Timeline
+                  </label>
+                  <input
+                    type="text"
+                    value={newDeliveryTime}
+                    onChange={(e) => setNewDeliveryTime(e.target.value)}
+                    placeholder="e.g., 18-25 business days (Customs cleared at Shenzhen Port)"
+                    required
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-neutral-700 bg-white dark:bg-[#1a1d24] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {[
+                      '14-21 business days (Direct Air Priority)',
+                      '21-35 business days (Standard China Freight)',
+                      '25-40 business days (Customs Inspection)',
+                      '3-5 business days (Express Final Leg)',
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setNewDeliveryTime(preset)}
+                        className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-neutral-800 hover:bg-amber-500/20 hover:text-amber-500 text-gray-600 dark:text-gray-300 transition-colors"
+                      >
+                        {preset.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Reason for Delivery Update <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={deliveryReason}
+                    onChange={(e) => setDeliveryReason(e.target.value)}
+                    placeholder="Explain the update reason (e.g. Flight schedule change from Guangzhou Baiyun Cargo terminal, customs clearance milestone reached...)"
+                    required
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-neutral-700 bg-white dark:bg-[#1a1d24] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-neutral-800">
+                  <button
+                    type="button"
+                    onClick={() => setEditingDeliveryOrder(null)}
+                    disabled={isSavingDelivery}
+                    className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingDelivery}
+                    className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black uppercase tracking-wider px-5 py-2.5 rounded-xl text-xs shadow-md transition-all flex items-center gap-2"
+                  >
+                    {isSavingDelivery ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Updating & Notifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Update Delivery & Send Email</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add / Edit Product Modal with Direct Image File Upload */}
       {isProductModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -1063,17 +1380,24 @@ export const AdminDashboard: React.FC = () => {
                           className={`group relative aspect-square rounded-lg overflow-hidden border-2 bg-gray-200 dark:bg-neutral-800 ${idx === 0 ? 'border-amber-500 shadow-sm' : 'border-gray-300 dark:border-neutral-700'
                             }`}
                         >
-                          <img
-                            src={imgUrl}
-                            alt={`Preview ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement
-                              if (!target.src.endsWith('/images/hero1.jpeg')) {
-                                target.src = '/images/hero1.jpeg'
-                              }
-                            }}
-                          />
+                          {isVideoMedia(imgUrl) ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-neutral-900 text-amber-500">
+                              <Play className="w-6 h-6 fill-amber-500" />
+                              <span className="text-[7px] font-black uppercase text-white mt-0.5">Video</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={imgUrl}
+                              alt={`Preview ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                if (!target.src.endsWith('/images/hero1.jpeg')) {
+                                  target.src = '/images/hero1.jpeg'
+                                }
+                              }}
+                            />
+                          )}
                           {idx === 0 && (
                             <span className="absolute top-1 left-1 bg-amber-500 text-black text-[8px] font-black uppercase px-1 rounded">
                               Main
@@ -1181,8 +1505,8 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 5. Brand and Delivery */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* 5. Brand, Delivery & China Store Hub */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Brand</label>
                     <input
@@ -1200,6 +1524,20 @@ export const AdminDashboard: React.FC = () => {
                       onChange={(e) => setProductForm({ ...productForm, deliveryTime: e.target.value })}
                       className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-[#1a1d24] border border-gray-300 dark:border-neutral-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none transition-colors"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">China Fulfillment Hub</label>
+                    <select
+                      value={productForm.storeLocation}
+                      onChange={(e) => setProductForm({ ...productForm, storeLocation: e.target.value })}
+                      className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-[#1a1d24] border border-gray-300 dark:border-neutral-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none transition-colors font-bold"
+                    >
+                      {CHINA_STORES.map((st) => (
+                        <option key={st.id} value={st.name}>
+                          {st.name} ({st.city})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

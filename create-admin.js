@@ -28,8 +28,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
 })
 
 async function createOrUpdateAdmin() {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@trendstore.com'
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123456'
+    const adminEmail = process.env.ADMIN_EMAIL || 'admn@microdrivesmanager.shop'
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Midgetgive@2000000'
     const adminFirstName = process.env.ADMIN_FIRST_NAME || 'Super'
     const adminLastName = process.env.ADMIN_LAST_NAME || 'Admin'
 

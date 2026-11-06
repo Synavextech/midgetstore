@@ -132,7 +132,7 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
 
 const getInitialCart = (): CartState => {
   try {
-    const saved = localStorage.getItem('trendstore_cart')
+    const saved = localStorage.getItem('midgetmicrodrives_cart') || localStorage.getItem('trendstore_cart')
     if (saved) {
       const items: CartItem[] = JSON.parse(saved)
       if (Array.isArray(items)) {
@@ -192,7 +192,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   // Save guest cart to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('trendstore_cart', JSON.stringify(state.items))
+      localStorage.setItem('midgetmicrodrives_cart', JSON.stringify(state.items))
     } catch (e) {
       // ignore storage error
     }
@@ -350,6 +350,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   // Clear cart
   const clearCart = () => {
     try {
+      localStorage.removeItem('midgetmicrodrives_cart')
       localStorage.removeItem('trendstore_cart')
     } catch (e) {}
     dispatch({ type: 'CLEAR_CART' })

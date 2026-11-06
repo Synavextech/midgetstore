@@ -180,6 +180,8 @@ export const createOrder = async (req: Request, res: Response) => {
       shippingAddressId: finalShippingAddressId,
       billingAddressId,
       notes,
+      estimatedDeliveryTime: req.body.estimatedDeliveryTime || '21-35 business days (Express Courier from China Hub)',
+      storeLocation: req.body.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China',
       items: orderItems
     })
 
@@ -188,16 +190,28 @@ export const createOrder = async (req: Request, res: Response) => {
       ? `${shippingAddressInput.address1 || ''}${shippingAddressInput.address2 ? `, ${shippingAddressInput.address2}` : ''}, ${shippingAddressInput.city || ''}, ${shippingAddressInput.state || ''} ${shippingAddressInput.postalCode || shippingAddressInput.zipCode || ''}, ${shippingAddressInput.country || 'United States'}`
       : undefined
 
-    // Dispatch real-time purchase confirmation & PDF receipt to user email (declared during account creation) AND system mail
-    emailService
-      .sendPurchaseNotifications(order, {
-        accountEmail: authUserToReturn?.email || req.user?.email || customerEmail,
-        shippingEmail: customerEmail,
-        firstName: shippingAddressInput?.firstName || authUserToReturn?.firstName,
-        lastName: shippingAddressInput?.lastName || authUserToReturn?.lastName,
-        fullAddress
-      })
-      .catch((err) => console.error('Order purchase notification error:', err))
+    // Dispatch real-time purchase confirmation or order creation notifications
+    if (isSettled) {
+      emailService
+        .sendPurchaseNotifications(order, {
+          accountEmail: authUserToReturn?.email || req.user?.email || customerEmail,
+          shippingEmail: customerEmail,
+          firstName: shippingAddressInput?.firstName || authUserToReturn?.firstName,
+          lastName: shippingAddressInput?.lastName || authUserToReturn?.lastName,
+          fullAddress
+        })
+        .catch((err) => console.error('Order purchase notification error:', err))
+    } else {
+      emailService
+        .sendOrderCreationNotification(order, {
+          accountEmail: authUserToReturn?.email || req.user?.email || customerEmail,
+          shippingEmail: customerEmail,
+          firstName: shippingAddressInput?.firstName || authUserToReturn?.firstName,
+          lastName: shippingAddressInput?.lastName || authUserToReturn?.lastName,
+          fullAddress
+        })
+        .catch((err) => console.error('Order creation notification error:', err))
+    }
 
     if (tokenToReturn) {
       res.cookie('token', tokenToReturn, {

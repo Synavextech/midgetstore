@@ -1,0 +1,2 @@
+import './create-admin.js'
+

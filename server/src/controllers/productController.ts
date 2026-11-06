@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { databaseService } from '../services/databaseService.js'
+import { emailService } from '../utils/emailService.js'
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -46,7 +47,7 @@ export const getProducts = async (req: Request, res: Response) => {
   }
 }
 
-// @desc    Get single product
+// @desc    Get single product (and logs view event)
 // @route   GET /api/products/:id
 // @access  Public
 export const getProduct = async (req: Request, res: Response) => {
@@ -60,6 +61,39 @@ export const getProduct = async (req: Request, res: Response) => {
       })
     }
 
+    // Record product view and emit real-time activity stream
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || req.socket.remoteAddress
+    const userAgent = req.headers['user-agent'] as string
+    const referrer = (req.headers['referer'] || req.headers['referrer']) as string
+    const user = req.user
+
+    databaseService.recordProductView({
+      productId: product.id,
+      productName: product.name,
+      productSku: product.sku,
+      productPrice: product.price,
+      userId: user?.id || null,
+      userEmail: user?.email || null,
+      userName: user ? (`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email) : null,
+      ipAddress: ip,
+      userAgent,
+      referrer,
+      storeLocation: product.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China'
+    }).catch(err => console.warn('Product view log notice:', err))
+
+    emailService.sendItemViewedNotification({
+      productId: product.id,
+      productName: product.name,
+      productSku: product.sku,
+      productPrice: product.price,
+      userEmail: user?.email,
+      userName: user ? (`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email) : undefined,
+      ipAddress: ip,
+      userAgent,
+      referrer,
+      storeLocation: product.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China'
+    }).catch(err => console.warn('Product view activity notice:', err))
+
     res.status(200).json({
       success: true,
       data: product
@@ -70,6 +104,54 @@ export const getProduct = async (req: Request, res: Response) => {
       success: false,
       error: 'Server Error'
     })
+  }
+}
+
+// @desc    Explicitly track client product view beacon (Public)
+// @route   POST /api/products/:id/view
+// @access  Public
+export const trackProductView = async (req: Request, res: Response) => {
+  try {
+    const product = await databaseService.findProductById(req.params.id)
+    if (!product) {
+      return res.status(404).json({ success: false, error: 'Product not found' })
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || req.socket.remoteAddress
+    const userAgent = req.headers['user-agent'] as string
+    const referrer = (req.body?.referrer || req.headers['referer'] || req.headers['referrer']) as string
+    const user = req.user
+
+    const visit = await databaseService.recordProductView({
+      productId: product.id,
+      productName: product.name,
+      productSku: product.sku,
+      productPrice: product.price,
+      userId: user?.id || req.body?.userId || null,
+      userEmail: user?.email || req.body?.userEmail || null,
+      userName: user ? (`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email) : req.body?.userName || null,
+      ipAddress: ip,
+      userAgent,
+      referrer,
+      storeLocation: product.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China'
+    })
+
+    emailService.sendItemViewedNotification({
+      productId: product.id,
+      productName: product.name,
+      productSku: product.sku,
+      productPrice: product.price,
+      userEmail: user?.email || req.body?.userEmail,
+      userName: user ? (`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email) : req.body?.userName,
+      ipAddress: ip,
+      userAgent,
+      referrer,
+      storeLocation: product.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China'
+    }).catch(err => console.warn('Product view activity notice:', err))
+
+    res.status(200).json({ success: true, data: visit })
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || 'Failed to record visit' })
   }
 }
 

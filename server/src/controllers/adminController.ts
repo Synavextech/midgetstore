@@ -307,6 +307,96 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
   }
 }
 
+// @desc    Update order estimated delivery time with mandatory reason (Admin)
+// @route   PUT /api/admin/orders/:id/delivery-time
+// @access  Private/Admin
+export const updateOrderDeliveryTime = async (req: Request, res: Response) => {
+  try {
+    if (req.user!.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin access required'
+      })
+    }
+
+    const { estimatedDeliveryTime, reason } = req.body
+    const orderId = req.params.id
+
+    if (!estimatedDeliveryTime || typeof estimatedDeliveryTime !== 'string' || !estimatedDeliveryTime.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'A valid estimated delivery time is required'
+      })
+    }
+
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'A reason for adjusting the delivery time must be provided'
+      })
+    }
+
+    const updatedOrder = await databaseService.updateOrderDeliveryTime(
+      orderId,
+      estimatedDeliveryTime.trim(),
+      reason.trim()
+    )
+
+    // Dispatch real-time SMTP emails and stream system activity
+    emailService
+      .sendDeliveryTimeUpdatedNotification(updatedOrder, estimatedDeliveryTime.trim(), reason.trim())
+      .catch((err) => console.error('Delivery update email error:', err))
+
+    res.status(200).json({
+      success: true,
+      message: 'Order delivery time updated successfully and notifications dispatched',
+      data: updatedOrder
+    })
+  } catch (error: any) {
+    console.error('Error updating delivery time:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Server Error'
+    })
+  }
+}
+
+// @desc    Get system visits & item views log with profile details (Admin)
+// @route   GET /api/admin/visits
+// @access  Private/Admin
+export const getSystemVisits = async (req: Request, res: Response) => {
+  try {
+    if (req.user!.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin access required'
+      })
+    }
+
+    const { limit = '50', page = '1' } = req.query
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 50))
+    const offset = (Math.max(1, parseInt(page as string) || 1) - 1) * limitNum
+
+    const { visits, total } = await databaseService.findProductViews(limitNum, offset)
+
+    res.status(200).json({
+      success: true,
+      data: visits,
+      pagination: {
+        currentPage: Math.max(1, parseInt(page as string) || 1),
+        totalPages: Math.ceil(total / limitNum) || 1,
+        totalVisits: total
+      }
+    })
+  } catch (error: any) {
+    console.error('Error fetching system visits:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Server Error'
+    })
+  }
+}
+
 // @desc    Get all users (Admin)
 // @route   GET /api/admin/users
 // @access  Private/Admin

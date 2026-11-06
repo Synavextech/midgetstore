@@ -12,7 +12,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const saved = localStorage.getItem('trendstore_theme')
+    const saved = localStorage.getItem('midgetmicrodrives_theme') || localStorage.getItem('trendstore_theme')
     if (saved === 'light' || saved === 'dark') {
       return saved
     }
@@ -28,7 +28,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.remove('dark')
       root.style.colorScheme = 'light'
     }
-    localStorage.setItem('trendstore_theme', theme)
+    localStorage.setItem('midgetmicrodrives_theme', theme)
   }, [theme])
 
   const toggleTheme = () => {

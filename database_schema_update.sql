@@ -1,5 +1,5 @@
 -- =====================================================
--- Trendstore - Supabase Database Schema Update & Migration
+-- Midget Micro Drives & Rides - Supabase Database Schema Update & Migration
 -- Fully Idempotent Script for Production Readiness
 -- Handles Products, Orders, Carts, Addresses, Users, Events,
 -- PayPal/Stripe Payment Settlement, and Foreign Key Relationships
@@ -525,14 +525,14 @@ CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON public.events
 -- 7. SEED STORE CATALOG DATA (USD)
 -- =====================================================
 
--- Admin User (password: 'password')
+-- Admin User (configured via create_admin.js or default seed)
 INSERT INTO public.users (id, email, password, first_name, last_name, role, is_active)
 VALUES (
-    'admin_trendstore_001',
-    'admin@trendstore.com',
+    'b518b03e-b64d-4939-848f-176d9d0ca16b',
+    'admn@microdrivesmanager.shop',
     '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
     'Admin',
-    'Trendstore',
+    'Manager',
     'ADMIN',
     true
 )
@@ -712,6 +712,6 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 
 DO $$
 BEGIN
-    RAISE NOTICE 'Trendstore schema update migration applied successfully!';
+    RAISE NOTICE 'Midget Micro Drives & Rides schema update migration applied successfully!';
 END $$;
 

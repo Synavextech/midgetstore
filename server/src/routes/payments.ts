@@ -65,6 +65,21 @@ async function getPayPalAccessToken(): Promise<{ token: string; baseUrl: string 
 // 1. STRIPE PAYMENT INTEGRATION (USD)
 // ==========================================
 
+// Get Stripe Public Configuration for Frontend Elements
+router.get('/stripe/config', (req, res) => {
+  const publishableKey =
+    process.env.STRIPE_PUBLISHABLE_KEY ||
+    process.env.VITE_STRIPE_PUBLISHABLE_KEY ||
+    'pk_live_51U1OVJAZusdAC7Xt4oUvFKuo36Qv6bYLXClwuWTzykMfDGJm29pZJPTSU98hS4R13id0KB0BFRp8sjHTcCClExjh00TOV3ZXSq'
+  res.status(200).json({
+    success: true,
+    data: {
+      publishableKey,
+      currency: 'USD'
+    }
+  })
+})
+
 // Create Payment Intent for Stripe Elements & Card Checkout
 router.post('/stripe/create-intent', async (req, res) => {
   try {
@@ -144,15 +159,33 @@ router.post('/stripe/confirm', async (req, res) => {
 // 2. PAYPAL PAYMENT INTEGRATION (USD)
 // ==========================================
 
-// Get PayPal Public Configuration for Frontend SDK
-router.get('/paypal/config', (req, res) => {
+// Get PayPal Public Configuration for Frontend SDK (auto-detecting verified mode)
+router.get('/paypal/config', async (_req, res) => {
   const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID || ''
-  const mode = process.env.PAYPAL_MODE || 'live'
+  const merchantId = process.env.PAYPAL_MERCHANT_ID || 'N7YM95SPUR8P8'
+  let mode = process.env.PAYPAL_MODE || 'live'
+  let sdkUrl = mode === 'sandbox' ? 'https://www.sandbox.paypal.com/sdk/js' : 'https://www.paypal.com/sdk/js'
+
+  try {
+    const { baseUrl } = await getPayPalAccessToken()
+    if (baseUrl.includes('sandbox')) {
+      mode = 'sandbox'
+      sdkUrl = 'https://www.sandbox.paypal.com/sdk/js'
+    } else {
+      mode = 'live'
+      sdkUrl = 'https://www.paypal.com/sdk/js'
+    }
+  } catch (err) {
+    // Keep environment default
+  }
+
   res.status(200).json({
     success: true,
     data: {
       clientId,
+      merchantId,
       mode,
+      sdkUrl,
       currency: 'USD'
     }
   })
@@ -172,6 +205,7 @@ router.post('/paypal/create-order', async (req, res) => {
 
     const { token, baseUrl } = await getPayPalAccessToken()
     const formattedAmount = Number(amount).toFixed(2)
+    const merchantId = process.env.PAYPAL_MERCHANT_ID || 'N7YM95SPUR8P8'
 
     let cleanOrigin = 'https://midgetmicrodrivesandrides.shop'
     try {
@@ -193,7 +227,8 @@ router.post('/paypal/create-order', async (req, res) => {
           amount: {
             currency_code: 'USD',
             value: formattedAmount
-          }
+          },
+          ...(merchantId ? { payee: { merchant_id: merchantId } } : {})
         }
       ],
       application_context: {
@@ -265,7 +300,7 @@ router.post('/paypal/create-order', async (req, res) => {
 // Capture PayPal Order
 router.post('/paypal/capture', async (req, res) => {
   try {
-    const { orderId } = req.body
+    const orderId = req.body.orderId || req.body.orderID
 
     if (!orderId) {
       return res.status(400).json({

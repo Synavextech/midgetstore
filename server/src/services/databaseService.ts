@@ -45,6 +45,8 @@ export class DatabaseService {
       isNew: raw.is_new ?? false,
       shippingRequired: raw.shipping_required ?? true,
       averageDeliveryTime: raw.average_delivery_time || null,
+      storeLocation: raw.store_location || 'Shenzhen Technology & Electric Mobility Hub, China',
+      videos: Array.isArray(raw.videos) ? raw.videos : [],
       weight: raw.weight ? Number(raw.weight) : null,
       dimensions: raw.dimensions || null,
       rating: raw.rating ? Number(raw.rating) : 4.9,
@@ -107,6 +109,11 @@ export class DatabaseService {
       shippingAddressId: raw.shipping_address_id || null,
       billingAddressId: raw.billing_address_id || null,
       notes: raw.notes || null,
+      estimatedDeliveryTime: raw.estimated_delivery_time || '21-35 business days (Express Courier from China Hub)',
+      deliveryUpdateReason: raw.delivery_update_reason || null,
+      deliveryUpdatedAt: raw.delivery_updated_at ? new Date(raw.delivery_updated_at) : null,
+      storeLocation: raw.store_location || 'Shenzhen Technology & Electric Mobility Hub, China',
+      pendingReminderSentAt: raw.pending_reminder_sent_at ? new Date(raw.pending_reminder_sent_at) : null,
       createdAt: raw.created_at ? new Date(raw.created_at) : new Date(),
       updatedAt: raw.updated_at ? new Date(raw.updated_at) : new Date(),
       items: Array.isArray(raw.order_items) ? raw.order_items.map((oi: any) => ({
@@ -332,7 +339,9 @@ export class DatabaseService {
         is_active: productData.isActive ?? true,
         is_new: productData.isNew ?? false,
         shipping_required: productData.shippingRequired ?? true,
-        average_delivery_time: productData.averageDeliveryTime || '2-4 business days',
+        average_delivery_time: productData.averageDeliveryTime || '21-35 business days (Express Courier from China Hub)',
+        store_location: productData.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China',
+        videos: productData.videos || [],
         weight: productData.weight,
         dimensions: productData.dimensions
       })
@@ -358,6 +367,8 @@ export class DatabaseService {
     if (productData.isNew !== undefined) payload.is_new = productData.isNew
     if (productData.shippingRequired !== undefined) payload.shipping_required = productData.shippingRequired
     if (productData.averageDeliveryTime !== undefined) payload.average_delivery_time = productData.averageDeliveryTime
+    if (productData.storeLocation !== undefined) payload.store_location = productData.storeLocation
+    if (productData.videos !== undefined) payload.videos = productData.videos
     if (productData.weight !== undefined) payload.weight = productData.weight
     if (productData.dimensions !== undefined) payload.dimensions = productData.dimensions
     payload.updated_at = new Date().toISOString()
@@ -556,6 +567,8 @@ export class DatabaseService {
     shippingAddressId?: string
     billingAddressId?: string
     notes?: string
+    estimatedDeliveryTime?: string
+    storeLocation?: string
     items: Array<{
       productId: string
       quantity: number
@@ -582,7 +595,9 @@ export class DatabaseService {
         status: orderData.status || (orderData.paymentStatus === 'COMPLETED' ? 'PROCESSING' : 'PENDING'),
         shipping_address_id: orderData.shippingAddressId,
         billing_address_id: orderData.billingAddressId,
-        notes: orderData.notes
+        notes: orderData.notes,
+        estimated_delivery_time: orderData.estimatedDeliveryTime || '21-35 business days (Express Courier from China Hub)',
+        store_location: orderData.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China'
       })
       .select()
       .single()
@@ -650,6 +665,144 @@ export class DatabaseService {
 
     if (error) throw error
     return this.mapOrder(data)
+  }
+
+  async updateOrderDeliveryTime(orderId: string, estimatedDeliveryTime: string, reason: string): Promise<Order> {
+    const now = new Date().toISOString()
+    const { data, error } = await this.supabase
+      .from('orders')
+      .update({
+        estimated_delivery_time: estimatedDeliveryTime,
+        delivery_update_reason: reason,
+        delivery_updated_at: now,
+        updated_at: now
+      })
+      .eq('id', orderId)
+      .select('*, order_items(*, products(*)), users(*), shipping_address:addresses!orders_shipping_address_id_fkey(*)')
+      .single()
+
+    if (error || !data) {
+      throw error || new Error('Failed to update order delivery time')
+    }
+    return this.mapOrder(data)
+  }
+
+  async findPendingOrdersOver30Minutes(): Promise<Order[]> {
+    try {
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+      const { data, error } = await this.supabase
+        .from('orders')
+        .select('*, order_items(*, products(*)), users(*), shipping_address:addresses!orders_shipping_address_id_fkey(*)')
+        .eq('status', 'PENDING')
+        .eq('payment_status', 'PENDING')
+        .lte('created_at', thirtyMinutesAgo)
+        .is('pending_reminder_sent_at', null)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+      return (data || []).map(o => this.mapOrder(o))
+    } catch (err: any) {
+      console.warn('Notice from findPendingOrdersOver30Minutes:', err.message)
+      return []
+    }
+  }
+
+  async markPendingReminderSent(orderId: string): Promise<void> {
+    try {
+      await this.supabase
+        .from('orders')
+        .update({
+          pending_reminder_sent_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+    } catch (err) {
+      console.warn('Could not mark pending reminder sent:', err)
+    }
+  }
+
+  // ==================== VISITOR & ITEM VIEWS TRACKING ====================
+  async recordProductView(viewData: {
+    productId: string
+    productName?: string
+    productSku?: string
+    productPrice?: number
+    userId?: string | null
+    userEmail?: string | null
+    userName?: string | null
+    ipAddress?: string | null
+    userAgent?: string | null
+    referrer?: string | null
+    storeLocation?: string | null
+  }) {
+    const id = crypto.randomUUID()
+    const payload = {
+      id,
+      product_id: viewData.productId,
+      product_name: viewData.productName || null,
+      product_sku: viewData.productSku || null,
+      product_price: viewData.productPrice || 0,
+      user_id: viewData.userId || null,
+      user_email: viewData.userEmail || null,
+      user_name: viewData.userName || null,
+      ip_address: viewData.ipAddress || null,
+      user_agent: viewData.userAgent || null,
+      referrer: viewData.referrer || null,
+      store_location: viewData.storeLocation || 'Shenzhen Technology & Electric Mobility Hub, China',
+      created_at: new Date().toISOString()
+    }
+
+    try {
+      const { data, error } = await this.supabase
+        .from('product_views')
+        .insert(payload)
+        .select()
+        .single()
+
+      if (error) {
+        // Table may not have been created yet or RLS notice
+        console.warn('Notice recording product view to Supabase:', error.message)
+      }
+      return data || payload
+    } catch (err) {
+      console.warn('Could not persist product view:', err)
+      return payload
+    }
+  }
+
+  async findProductViews(limit: number = 50, offset: number = 0) {
+    try {
+      const { data, count, error } = await this.supabase
+        .from('product_views')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (error) {
+        console.warn('Notice querying product_views from Supabase:', error.message)
+        return { visits: [], total: 0 }
+      }
+
+      const visits = (data || []).map((row: any) => ({
+        id: row.id,
+        productId: row.product_id,
+        productName: row.product_name,
+        productSku: row.product_sku,
+        productPrice: Number(row.product_price || 0),
+        userId: row.user_id,
+        userEmail: row.user_email,
+        userName: row.user_name,
+        ipAddress: row.ip_address,
+        userAgent: row.user_agent,
+        referrer: row.referrer,
+        storeLocation: row.store_location,
+        createdAt: row.created_at ? new Date(row.created_at) : new Date()
+      }))
+
+      return { visits, total: count ?? visits.length }
+    } catch (err) {
+      console.warn('findProductViews fallback:', err)
+      return { visits: [], total: 0 }
+    }
   }
 
   async getOrderCount(filter?: { status?: string; userId?: string }): Promise<number> {

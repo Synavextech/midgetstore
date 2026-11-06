@@ -2,6 +2,7 @@ import express from 'express'
 import {
   getProducts,
   getProduct,
+  trackProductView,
   createProduct,
   updateProduct,
   deleteProduct
@@ -13,6 +14,7 @@ const router = express.Router()
 // Public routes
 router.get('/', getProducts)
 router.get('/:id', getProduct)
+router.post('/:id/view', trackProductView)
 
 // Protected Admin routes
 router.post('/', protect, authorize('ADMIN'), createProduct)

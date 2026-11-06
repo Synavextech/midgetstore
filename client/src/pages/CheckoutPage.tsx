@@ -13,10 +13,10 @@ import { useAuth } from '../contexts/AuthContext'
 import { orderApi, paymentApi } from '../services/api'
 import { ALL_COUNTRIES, POPULAR_COUNTRIES, getCountryCode } from '../utils/countries'
 
-// Initialize Stripe with Live Publishable Key
+// Initialize Stripe with Live Publishable Key (Synced with .env)
 const stripePublishableKey =
   (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY ||
-  'pk_live_51TmGHyBwxUQmXC9Magb4FXJbEPQ2EvNKaxNIzg2KlGeMliHNmNLx0hv0ACB6anDy2gFkU8tkZfRnatOJCdTzCwh500CV1Xf3BK'
+  'pk_live_51U1OVJAZusdAC7Xt4oUvFKuo36Qv6bYLXClwuWTzykMfDGJm29pZJPTSU98hS4R13id0KB0BFRp8sjHTcCClExjh00TOV3ZXSq'
 
 const stripePromise = loadStripe(stripePublishableKey)
 
@@ -26,7 +26,7 @@ const defaultPayPalClientId =
   'AeZPJVk6Zp1zLPnNtCcOdXvQFQi-iLkWnSdbB7c0vYwyOpQMG845TpUz6MZSJd-TXLfHgFfiBrLEWxpt'
 
 // Helper to dynamically load PayPal JavaScript SDK with debit/credit card button enabled
-const loadPayPalSdkScript = (clientId: string): Promise<any> => {
+const loadPayPalSdkScript = (clientId: string, customSdkUrl?: string, merchantId?: string): Promise<any> => {
   return new Promise((resolve, reject) => {
     if ((window as any).paypal?.Buttons) {
       return resolve((window as any).paypal)
@@ -45,8 +45,10 @@ const loadPayPalSdkScript = (clientId: string): Promise<any> => {
 
     const script = document.createElement('script')
     script.id = scriptId
+    const baseSdk = customSdkUrl || 'https://www.paypal.com/sdk/js'
+    const merchantParam = merchantId ? `&merchant-id=${encodeURIComponent(merchantId)}` : '&merchant-id=N7YM95SPUR8P8'
     // enable-funding=card forces the Debit/Credit Card button to render alongside PayPal button
-    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&enable-funding=card&components=buttons`
+    script.src = `${baseSdk}?client-id=${encodeURIComponent(clientId)}${merchantParam}&currency=USD&intent=capture&enable-funding=card&components=buttons`
     script.async = true
     script.onload = () => {
       if ((window as any).paypal) {
@@ -102,6 +104,10 @@ const CheckoutForm: React.FC = () => {
   // PayPal JavaScript SDK State and Refs
   const [isSdkLoading, setIsSdkLoading] = useState(false)
   const [paypalClientId, setPaypalClientId] = useState<string>(defaultPayPalClientId)
+  const [paypalMerchantId, setPaypalMerchantId] = useState<string>(
+    (import.meta as any).env?.VITE_PAYPAL_MERCHANT_ID || 'N7YM95SPUR8P8'
+  )
+  const [paypalSdkUrl, setPaypalSdkUrl] = useState<string | undefined>(undefined)
   const paypalContainerRef = useRef<HTMLDivElement>(null)
   const paypalButtonsInstanceRef = useRef<any>(null)
 
@@ -158,6 +164,12 @@ const CheckoutForm: React.FC = () => {
     paymentApi.getPayPalConfig().then(res => {
       if (res.success && res.data?.clientId) {
         setPaypalClientId(res.data.clientId)
+        if ((res.data as any).merchantId) {
+          setPaypalMerchantId((res.data as any).merchantId)
+        }
+        if ((res.data as any).sdkUrl) {
+          setPaypalSdkUrl((res.data as any).sdkUrl)
+        }
       }
     }).catch(err => {
       console.warn('Could not fetch PayPal config from backend, using default/env:', err)
@@ -181,7 +193,7 @@ const CheckoutForm: React.FC = () => {
     let isMounted = true
     setIsSdkLoading(true)
 
-    loadPayPalSdkScript(paypalClientId)
+    loadPayPalSdkScript(paypalClientId, paypalSdkUrl, paypalMerchantId)
       .then((paypal) => {
         if (!isMounted) return
         setIsSdkLoading(false)
@@ -247,7 +259,10 @@ const CheckoutForm: React.FC = () => {
                 setProcessingStep('Authorizing and capturing PayPal payment in USD...')
 
                 try {
-                  const orderId = data.orderId
+                  const orderId = data.orderID || data.orderId
+                  if (!orderId) {
+                    throw new Error('PayPal Order ID was not received from approval callback.')
+                  }
                   const captureRes = await paymentApi.capturePayPalPayment(orderId)
 
                   if (!captureRes.success || !captureRes.data) {
@@ -347,10 +362,11 @@ const CheckoutForm: React.FC = () => {
               },
               onError: (err: any) => {
                 console.error('PayPal Buttons error:', err)
-                setErrorMessage('PayPal transaction could not be processed. Please try again.')
+                setErrorMessage('PayPal transaction could not be processed. If a payment is canceled or fails, the status remains PENDING. You may retry payment or select Credit / Debit Card.')
                 setIsProcessing(false)
               },
               onCancel: () => {
+                setErrorMessage('PayPal checkout was cancelled. Your order remains saved in PENDING status. You may resume payment at any time.')
                 setIsProcessing(false)
               }
             })
@@ -371,7 +387,7 @@ const CheckoutForm: React.FC = () => {
     return () => {
       isMounted = false
     }
-  }, [paymentMethod, paypalClientId])
+  }, [paymentMethod, paypalClientId, paypalSdkUrl, paypalMerchantId])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -596,7 +612,7 @@ const CheckoutForm: React.FC = () => {
       })
     } catch (error: any) {
       console.error('Payment checkout error:', error)
-      setErrorMessage(error.message || 'Payment processing was unsuccessful. Please verify your details and try again.')
+      setErrorMessage(error.message || 'Payment processing was unsuccessful. If a payment fails or is cancelled, your order status remains PENDING. Please verify your details and try again.')
       setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
     } finally {
       setIsProcessing(false)
