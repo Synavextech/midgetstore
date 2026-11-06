@@ -11,6 +11,7 @@ import { CreditCard, Truck, Lock, CheckCircle, AlertCircle } from 'lucide-react'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { orderApi, paymentApi } from '../services/api'
+import { ALL_COUNTRIES, POPULAR_COUNTRIES, getCountryCode } from '../utils/countries'
 
 // Initialize Stripe with Live Publishable Key
 const stripePublishableKey =
@@ -432,7 +433,7 @@ const CheckoutForm: React.FC = () => {
                 city: shippingData.city,
                 state: shippingData.state,
                 postal_code: shippingData.zipCode,
-                country: 'US'
+                country: getCountryCode(shippingData.country)
               }
             }
           }
@@ -804,13 +805,22 @@ const CheckoutForm: React.FC = () => {
                     value={shippingData.country}
                     onChange={handleInputChange}
                     className={inputClasses}
+                    required
                   >
-                    <option value="United States">United States</option>
-                    <option value="Canada">Canada</option>
-                    <option value="United Kingdom">United Kingdom</option>
-                    <option value="Australia">Australia</option>
-                    <option value="Germany">Germany</option>
-                    <option value="Other">Other International Destination</option>
+                    <optgroup label="Popular Countries">
+                      {POPULAR_COUNTRIES.map((c) => (
+                        <option key={`popular-${c.code}`} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="All Countries & Territories">
+                      {ALL_COUNTRIES.map((c) => (
+                        <option key={`all-${c.code}`} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
 
