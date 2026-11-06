@@ -173,15 +173,23 @@ router.post('/paypal/create-order', async (req, res) => {
     const { token, baseUrl } = await getPayPalAccessToken()
     const formattedAmount = Number(amount).toFixed(2)
 
-    const origin = (req.headers.origin as string) || (req.headers.referer as string) || 'https://midgetdriftcarsandebikes.shop'
-    const cleanOrigin = origin.replace(/\/+$/, '')
+    let cleanOrigin = 'https://midgetmicrodrivesandrides.shop'
+    try {
+      const headerOrigin = (req.headers.origin as string) || (req.headers.referer as string)
+      if (headerOrigin) {
+        const parsed = new URL(headerOrigin)
+        cleanOrigin = `${parsed.protocol}//${parsed.host}`
+      }
+    } catch {
+      cleanOrigin = 'https://midgetmicrodrivesandrides.shop'
+    }
 
     const payload: any = {
       intent: 'CAPTURE',
       purchase_units: [
         {
           reference_id: `MMR-${Date.now()}`,
-          description: 'Midget Micro Drive & Rides Order',
+          description: 'Midget Micro Drive & Rides Store Order',
           amount: {
             currency_code: 'USD',
             value: formattedAmount
@@ -190,7 +198,7 @@ router.post('/paypal/create-order', async (req, res) => {
       ],
       application_context: {
         brand_name: 'Midget Micro Drive & Rides',
-        landing_page: 'GUEST_CHECKOUT',
+        landing_page: 'NO_PREFERENCE',
         shipping_preference: 'NO_SHIPPING',
         user_action: 'PAY_NOW',
         return_url: `${cleanOrigin}/order-success`,
@@ -198,13 +206,21 @@ router.post('/paypal/create-order', async (req, res) => {
       }
     }
 
-    if (payer && payer.email) {
-      payload.payer = {
-        email_address: payer.email,
-        name: {
-          given_name: payer.firstName || undefined,
-          surname: payer.lastName || undefined
+    // Safely attach payer details only if syntactically valid per PayPal v2 schema
+    if (payer && typeof payer === 'object') {
+      const email = typeof payer.email === 'string' && payer.email.includes('@') ? payer.email.trim() : null
+      const firstName = typeof payer.firstName === 'string' && payer.firstName.trim().length > 0 ? payer.firstName.trim().substring(0, 140) : null
+      const lastName = typeof payer.lastName === 'string' && payer.lastName.trim().length > 0 ? payer.lastName.trim().substring(0, 140) : null
+
+      if (email || firstName || lastName) {
+        const payerObj: any = {}
+        if (email) payerObj.email_address = email
+        if (firstName || lastName) {
+          payerObj.name = {}
+          if (firstName) payerObj.name.given_name = firstName
+          if (lastName) payerObj.name.surname = lastName
         }
+        payload.payer = payerObj
       }
     }
 
@@ -220,7 +236,11 @@ router.post('/paypal/create-order', async (req, res) => {
     const orderData = await orderRes.json()
 
     if (!orderRes.ok) {
-      throw new Error(orderData.message || 'Failed to create PayPal order')
+      console.error('PayPal create-order API error response:', JSON.stringify(orderData, null, 2))
+      const details = Array.isArray(orderData.details)
+        ? orderData.details.map((d: any) => `${d.field ? d.field + ': ' : ''}${d.description || d.issue}`).join('; ')
+        : ''
+      throw new Error(details ? `${orderData.message} (${details})` : (orderData.message || 'Failed to create PayPal order'))
     }
 
     const approveLink = orderData.links?.find((l: any) => l.rel === 'approve')?.href || ''
@@ -267,7 +287,11 @@ router.post('/paypal/capture', async (req, res) => {
     const captureData = await captureRes.json()
 
     if (!captureRes.ok) {
-      throw new Error(captureData.message || 'Failed to capture PayPal payment')
+      console.error('PayPal capture API error response:', JSON.stringify(captureData, null, 2))
+      const details = Array.isArray(captureData.details)
+        ? captureData.details.map((d: any) => `${d.field ? d.field + ': ' : ''}${d.description || d.issue}`).join('; ')
+        : ''
+      throw new Error(details ? `${captureData.message} (${details})` : (captureData.message || 'Failed to capture PayPal payment'))
     }
 
     res.status(200).json({

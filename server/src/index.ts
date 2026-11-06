@@ -81,43 +81,9 @@ app.use(cookieParser())
 // Logging middleware
 app.use(morgan('combined'))
 
-// Static file serving: product images & media
+// Paths for static assets
 const clientPublicPath = path.resolve(__dirname, '../../client/public')
 const distPath = path.resolve(__dirname, '../../dist')
-
-app.use('/images', express.static(path.join(clientPublicPath, 'images'), {
-  maxAge: '1d',
-  fallthrough: true
-}))
-
-if (fs.existsSync(path.join(distPath, 'images'))) {
-  app.use('/images', express.static(path.join(distPath, 'images'), {
-    maxAge: '1d',
-    fallthrough: true
-  }))
-}
-
-// Serve Vite production build static assets (JS, CSS, fonts)
-if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath, {
-    maxAge: '1d',
-    index: false
-  }))
-}
-
-// Also serve client public folder
-app.use(express.static(clientPublicPath, {
-  maxAge: '1d'
-}))
-
-// Serve favicon.ico
-app.get('/favicon.ico', (req, res) => {
-  const faviconDist = path.join(distPath, 'favicon.ico')
-  const faviconPublic = path.join(clientPublicPath, 'favicon.ico')
-  if (fs.existsSync(faviconDist)) return res.sendFile(faviconDist)
-  if (fs.existsSync(faviconPublic)) return res.sendFile(faviconPublic)
-  res.status(204).end()
-})
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -150,7 +116,9 @@ app.get('/api', (req, res) => {
   })
 })
 
-// API routes
+// ==========================================
+// API Routes (Mounted FIRST so /api is never handled by static file server)
+// ==========================================
 app.use('/api/products', productRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/auth', authRoutes)
@@ -158,6 +126,57 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/events', eventsRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/cart', cartRoutes)
+
+// ==========================================
+// Static File Serving (Excludes /api and /health)
+// ==========================================
+
+// Product images & media
+app.use('/images', express.static(path.join(clientPublicPath, 'images'), {
+  maxAge: '1d',
+  fallthrough: true
+}))
+
+if (fs.existsSync(path.join(distPath, 'images'))) {
+  app.use('/images', express.static(path.join(distPath, 'images'), {
+    maxAge: '1d',
+    fallthrough: true
+  }))
+}
+
+// Serve Vite production build static assets (JS, CSS, fonts) for non-API requests
+if (fs.existsSync(distPath)) {
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
+      return next()
+    }
+    express.static(distPath, {
+      maxAge: '1d',
+      index: false,
+      fallthrough: true
+    })(req, res, next)
+  })
+}
+
+// Also serve client public folder for non-API requests
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
+    return next()
+  }
+  express.static(clientPublicPath, {
+    maxAge: '1d',
+    fallthrough: true
+  })(req, res, next)
+})
+
+// Serve favicon.ico
+app.get('/favicon.ico', (req, res) => {
+  const faviconDist = path.join(distPath, 'favicon.ico')
+  const faviconPublic = path.join(clientPublicPath, 'favicon.ico')
+  if (fs.existsSync(faviconDist)) return res.sendFile(faviconDist)
+  if (fs.existsSync(faviconPublic)) return res.sendFile(faviconPublic)
+  res.status(204).end()
+})
 
 // SPA Fallback: Any non-API GET request serves dist/index.html
 app.get('*', (req, res, next) => {
