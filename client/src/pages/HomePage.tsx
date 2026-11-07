@@ -496,7 +496,7 @@ export const HomePage: React.FC = () => {
               <div className="space-y-1.5 pt-1 text-xs text-gray-600 dark:text-gray-400">
                 <p className="text-gray-900 dark:text-white font-bold">🏢 Head Office:</p>
 
-                <p>Building 6, Lecong Industrial Park</p>
+                <p>Building 609, Lecong Industrial Park</p>
                 <p>Shunde District, Foshan, Guangdong 503315, China</p>
                 <a
                   href="https://wa.me/19093088313?text=Hello!%20I%20would%20like%20some%20assistance%20regarding%20Midget%20Micro%20Drives%20%26%20Rides."
