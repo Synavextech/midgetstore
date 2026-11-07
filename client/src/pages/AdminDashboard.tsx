@@ -263,12 +263,26 @@ export const AdminDashboard: React.FC = () => {
     }
   }
 
-  // Handle direct file upload through adminApi (supports multiple images & video)
+  // Handle direct file upload through adminApi (supports multiple images & video up to 150MB)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files
     if (!fileList || fileList.length === 0) return
 
     const files = Array.from(fileList)
+    const MAX_SIZE_BYTES = 150 * 1024 * 1024 // 150MB
+
+    // Client-side pre-flight check to prevent HTTP 413 (Request Entity Too Large)
+    for (const f of files) {
+      if (f.size > MAX_SIZE_BYTES) {
+        const sizeMb = (f.size / (1024 * 1024)).toFixed(1)
+        notify(
+          'error',
+          `File "${f.name}" (${sizeMb}MB) exceeds the maximum allowed upload limit of 150MB. Please compress or trim the video before uploading.`
+        )
+        e.target.value = ''
+        return
+      }
+    }
 
     try {
       setIsUploadingImage(true)
@@ -1346,7 +1360,7 @@ export const AdminDashboard: React.FC = () => {
                         Product Media (Images & Videos to /public/images)
                       </label>
                       <p className="text-[10px] text-gray-400">
-                        Select multiple images or video clips. First media item is the primary thumbnail.
+                        Select multiple images or video clips (up to 150MB each). First media item is the primary thumbnail.
                       </p>
                     </div>
                     <span className="text-[10px] font-mono bg-amber-500/20 text-amber-500 font-bold px-2 py-0.5 rounded">

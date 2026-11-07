@@ -65,6 +65,23 @@ export const errorHandler = (
     error.message = 'Validation failed'
   }
 
+  // Multer & Media Upload errors
+  if (err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      error.statusCode = 413
+      error.message = 'Media file exceeds maximum upload size (150MB)'
+    } else {
+      error.statusCode = 400
+      error.message = `File upload error: ${err.message}`
+    }
+  }
+
+  // Payload Too Large / Entity Too Large errors
+  if ((err as any).type === 'entity.too.large' || err.statusCode === 413 || (err as any).status === 413) {
+    error.statusCode = 413
+    error.message = 'Request payload too large (exceeds allowable size limit)'
+  }
+
   // Default error response
   res.status(error.statusCode || 500).json({
     success: false,

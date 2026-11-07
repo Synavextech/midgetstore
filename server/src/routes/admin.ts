@@ -48,9 +48,14 @@ const storage = multer.diskStorage({
   }
 })
 
+const MAX_UPLOAD_SIZE = 150 * 1024 * 1024 // 150MB (supporting high-definition video clips)
+
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB (supporting higher-res images & video)
+  limits: {
+    fileSize: MAX_UPLOAD_SIZE,
+    fieldSize: MAX_UPLOAD_SIZE
+  },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true)
@@ -63,8 +68,30 @@ const upload = multer({
 // All admin routes require authentication and ADMIN role
 router.use(protect, authorize('ADMIN'))
 
-// File upload endpoint for admin catalog items (supports single or multiple media files)
-router.post('/upload', upload.any(), (req, res) => {
+// File upload endpoint for admin catalog items with explicit Multer size violation handler
+router.post('/upload', (req, res, next) => {
+  upload.any()(req, res, (err: any) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(413).json({
+            success: false,
+            error: 'Media file exceeds maximum allowed upload size of 150MB. Please compress or select a shorter video clip.'
+          })
+        }
+        return res.status(400).json({
+          success: false,
+          error: `Upload error: ${err.message}`
+        })
+      }
+      return res.status(400).json({
+        success: false,
+        error: err.message || 'Invalid upload format'
+      })
+    }
+    next()
+  })
+}, (req, res) => {
   const files = (req.files as Express.Multer.File[]) || (req.file ? [req.file] : [])
   if (!files || files.length === 0) {
     return res.status(400).json({ success: false, error: 'No media file uploaded' })
