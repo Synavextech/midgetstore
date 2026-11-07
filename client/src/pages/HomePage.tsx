@@ -622,7 +622,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 dark:text-gray-400 gap-4">
-            <p>© 2026 Midget Micro Drive & Rides (midgetmicrodrivesandrides.shop). All rights reserved. By management! All users should create an account to track order progress.</p>
+            <p>© 2026 Midget Micro Drive & Rides (midgetmicrodrivesandrides.shop). All Rights Reserved. By management! All users should create an account to track order progress.</p>
             <div className="flex gap-6">
               <a href="#privacy" className="hover:text-amber-500 dark:hover:text-gray-300">Privacy</a>
               <a href="#terms" className="hover:text-amber-500 dark:hover:text-gray-300">Terms</a>
